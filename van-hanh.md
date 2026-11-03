@@ -2,6 +2,14 @@
 
 Cập nhật ngày **03/11/2026**, giờ Việt Nam. Tài liệu này thay thế các ghi chép vận hành chánh điện trước đây. Trạng thái LIVE và kết nối là lần quan sát gần nhất, không bảo đảm tại thời điểm đọc; luôn kiểm tra lại trước khi thao tác.
 
+## Sửa bộ nhận tim thật — 03/11/2026,18:51
+
+- Adapter LIKE hỗ trợ cả `likeCount` (legacy) và `count` (proto/v3). Trước đó chỉ đọc `likeCount` nên tim thật v3 bị bỏ qua; không dùng `total` để cộng lại tổng phòng.
+- 35 kiểm thử Node đạt, bổ sung hồi quy LIKE v3:499+1 chạm500, chống trùng msgId và tương thích legacy.
+- Khởi động lại backend, khôi phục4 khách và kết nối lại @hannie.l.lm.n lúc18:51:47; Studio tiếp tục phát.
+- Sau khi người dùng thả tim, overlay nhận16/500 và fill3,2%. Đây là bằng chứng tim thật cập nhật; chưa quan sát riêng lần vượt500 bằng tim thật sau sửa.
+- Bố cục mobile hiện tại: menu x125/y640,scale0,9; hướng dẫn right140,width270,border-box. Nguồn Studio `?autoplay=1&v=mobile-safe-2`. Tiêu đề phiên “đến giờ nhậu rồi các bợm ơi”; About me đã bỏ đoạn Music cũ.
+
 ## Trạng thái hiện tại và các phần đã hoàn thiện — 03/11/2026
 
 Mục này là nguồn mô tả bản hiện tại, thay thế các quy tắc tương ứng trong phần bàn giao lịch sử bên dưới. Workspace hiện tại: `/Users/balance/Documents/quan-nhau-thanh-tinh`; Node **22.21.1**. Không suy ra trạng thái LIVE hoặc kết nối TikTok hiện tại từ những lần kiểm tra trước.
@@ -349,3 +357,8 @@ Chưa hoàn thiện hoặc giới hạn:
 - Phân biệt mock test, preview, khung Studio và kết quả phía người xem; báo đúng mức đã kiểm chứng.
 - Đổi hình LIVE phải hoàn tất file + reload Link + kiểm tra screenshot.
 - Cập nhật đúng mục tài liệu sau thay đổi lớn, không nối nhiều đoạn “mới nhất” mâu thuẫn.
+
+
+## Lời mời vào quán định kỳ — 03/11/2026
+
+- Server tự đọc lời mời vào Quán Nhậu Thanh Tịnh mỗi 3 phút, bằng giọng đang chọn. Chỉ đọc khi có overlay mở; nếu đang đọc hoặc có câu chờ thì bỏ qua lượt đó để không chen lời cảm ơn quà. Không hiện banner, không bật lại tụng kinh. Nội dung tại INVITE_TEXT trong live/server.mjs.

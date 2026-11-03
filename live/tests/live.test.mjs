@@ -118,8 +118,8 @@ test('idle seats expire, active seats stay and returning donors retain gift tota
     const idle = env.api.viewers.get('donor');
     const active = env.api.seat('active', 'Active').v;
     const now = Date.now();
-    idle.lastAt = now - 300_000;
-    active.lastAt = now - 299_999;
+    idle.lastAt = now - 120_000;
+    active.lastAt = now - 119_999;
     env.api.expireSeats(now);
     assert.equal(env.api.viewers.has('donor'), false);
     assert.equal(env.api.viewers.has('active'), true);
@@ -377,5 +377,43 @@ test('500 like milestones count deltas, deduplicate events, isolate simulations 
  e.api.onLike('a',600,'three');assert.equal(e.messages.at(-1).milestone,1000);assert.equal(e.api.snapshot().roomLikes,1100);
  e.api.onLike('a',-1);e.api.onLike('a',NaN);assert.equal(e.api.snapshot().roomLikes,1100);
  e.api.saveRuntimeSession();const r=setup(e.dir);assert.equal(r.api.snapshot().roomLikes,1100);
+ }finally{fs.rmSync(e.dir,{recursive:true,force:true});}
+});
+
+
+test('raw v3 LIKE synchronizes authoritative room total and deduplicates', async () => {
+  const e=setup(); let conn;
+  class Conn extends EventEmitter {
+    constructor(){super();conn=this;}
+    async connect(){return {roomId:'likes'};}
+    disconnect(){}
+  }
+  e.api.useLib({TikTokLiveConnection:Conn,WebcastEvent:{CHAT:'chat',GIFT:'gift',MEMBER:'member',LIKE:'like'},ControlEvent:{ERROR:'error',DISCONNECTED:'disconnect'}});
+  try {
+    await e.api.connectTikTok('test');
+    conn.emit('like',{user:{id:'1'},count:499,total:'20000',common:{msgId:'raw1'}});
+    assert.equal(e.api.snapshot().roomLikes,20000);
+    conn.emit('like',{user:{id:'1'},count:1,total:'20001',common:{msgId:'raw2'}});
+    assert.equal(e.api.snapshot().roomLikes,20001);
+    assert.equal(e.messages.at(-1).t,'like');
+    conn.emit('like',{user:{id:'1'},count:1,total:'20001',common:{msgId:'raw2'}});
+    assert.equal(e.api.snapshot().roomLikes,20001);
+    conn.emit('like',{user:{id:'1'},likeCount:20,totalLikeCount:20021,common:{msgId:'legacy'}});
+    assert.equal(e.api.snapshot().roomLikes,20021);
+  } finally {e.api.disconnectTikTok();fs.rmSync(e.dir,{recursive:true,force:true});}
+});
+
+test('manual removal frees seat, preserves rewards and allows chat return; optional seated idle expiry',()=>{
+ const e=setup();try{
+  e.api.onGift('guest','Guest','Gift',1,100);
+  e.api.onControl({cmd:'removeGuest',id:'guest'});
+  assert.equal(e.api.viewers.has('guest'),false);
+  e.api.onChat('guest','Guest','hey');
+  assert.equal(e.api.viewers.get('guest').sessionCoins,100);
+  assert.ok(e.api.viewers.get('guest').seatId);
+  const v=e.api.viewers.get('guest'),now=Date.now();v.lastAt=now-180000;
+  e.api.expireSeats(now);assert.equal(e.api.viewers.has('guest'),true);
+  e.api.onControl({cmd:'settings',settings:{seatedIdleMinutes:2}});
+  e.api.expireSeats(now);assert.equal(e.api.viewers.has('guest'),false);
  }finally{fs.rmSync(e.dir,{recursive:true,force:true});}
 });

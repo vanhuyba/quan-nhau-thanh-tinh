@@ -93,7 +93,7 @@ html,body{margin:0;height:100%;background:#000;overflow:hidden;font-family:var(-
 .firework-rule{color:#ffe1a0;background:rgba(158,109,35,.16);border-radius:8px;padding:10px!important;border:1px solid #b5955455!important}
 
 #plaque{top:35px;left:280px;right:160px;height:90px;gap:3px}#title{font-size:31px}#subtitle{font-size:17px}#plaque::before,#plaque::after{display:none}
-#pills{top:140px;left:360px;right:50px}.pill{font-size:19px;padding:7px 14px}#guide{top:225px;right:30px;width:270px;font-size:17px}#merit{display:none}
+#pills{top:140px;left:360px;right:50px}.pill{font-size:19px;padding:7px 14px}#guide{top:225px;right:120px;width:270px;font-size:17px;box-sizing:border-box}#merit{display:none}
 #unmute{top:auto;bottom:35px;font-size:20px;padding:12px 22px}
 #orderNotice{position:absolute;top:690px;left:365px;right:25px;min-height:40px;text-align:center;color:#ffdf8f;font-size:24px;background:#183526db;border-radius:12px;padding:12px}#karaoke{position:absolute;left:375px;right:40px;top:1440px;padding:8px;background:#182d2470;border:1px solid #c4a0e1;border-radius:16px;font-size:20px;color:#f4e6ff}#karaoke h3{margin:0 0 4px;font-size:20px}#songList{font-size:17px}#queueLabel{top:1690px}#seatWelcome{top:735px;left:370px;right:30px}#seatWelcome strong{font-size:29px}
 /* Notices sit over the roof, clear of tables and the guide on the right. */
@@ -555,7 +555,7 @@ let cheersUntil=0;
 function triggerRoomCheers(m,now=performance.now()){
   cheersUntil=now+8000;
   queueTTS('/assets/room-cheers-mix-v2.wav');
-  document.getElementById('orderNotice').textContent=(m.simulated?'THỬ · ':'')+m.milestone+' tim · Một, hai, ba... dô! 🍻';
+  document.getElementById('orderNotice').textContent=(m.simulated?'Xem trước · ':'')+m.milestone+' tim · Một, hai, ba... dô! 🍻';
   for(const v of visitors.values()){v.glow=1;v.bubble={text:'🍻 Một, hai, ba... dô!',until:cheersUntil};}
 }
 
@@ -605,7 +605,7 @@ function updateHeartProgress(total,simulated=false){
   total=Math.max(0,Math.floor(Number(total)||0));const target=(Math.floor(total/500)+1)*500,within=total%500;
   const el=document.getElementById('heartProgress');el.setAttribute('aria-valuenow',within);
   document.getElementById('heartCount').textContent=total.toLocaleString('vi-VN')+' / '+target.toLocaleString('vi-VN');
-  document.getElementById('heartGoal').textContent=(simulated?'Thử · ':'')+'Cùng nâng ly';
+  document.getElementById('heartGoal').textContent=(simulated?'Xem trước · ':'')+'Cùng nâng ly';
   document.getElementById('heartFill').style.width=(within/5)+'%';
 }
 function hearts(v,n){ for (let i=0;i<Math.min(6,n);i++) petals.push({x:v.x+(Math.random()-.5)*60, y:v.y-140*(v.seat?.scale||.4), vx:(Math.random()-.5)*20, vy:-(50+Math.random()*40), t:0, life:1.6, s:.08, heart:true}); }
@@ -616,7 +616,7 @@ function connect(){
   ws = new WebSocket(`ws://${location.host}/ws?role=overlay`);
   const st=document.getElementById('conn');
   ws.onopen=()=>{ st.textContent=''; };
-  ws.onclose=()=>{ st.textContent='mất kết nối server… đang thử lại'; setTimeout(connect,2000); };
+  ws.onclose=()=>{ st.textContent='mất kết nối server… đang kết nối lại'; setTimeout(connect,2000); };
   ws.onmessage=e=>{
     const m=JSON.parse(e.data);
     switch(m.t){
@@ -714,7 +714,7 @@ function drawSausageCart(now){
 function drawMenuBoard(now){
   if(!menuItems.length)return;
   const food=Math.floor(now/12000)%2===0,items=menuItems.filter(m=>m.code.startsWith(food?'M':'B'));
-  ctx.save();ctx.translate(35,640);ctx.rotate(-.025);
+  ctx.save();ctx.translate(105,640);ctx.scale(.8,.9);
   ellipse(150,586,150,18,'#0002');ctx.fillStyle='#60472e66';ctx.fillRect(16,550,10,50);ctx.fillRect(274,550,10,50);
   ctx.fillStyle='rgba(20,35,29,.65)';rr(0,0,300,560,10);ctx.fill();ctx.strokeStyle='rgba(195,179,135,.32)';ctx.lineWidth=1;ctx.stroke();
   ctx.textAlign='center';ctx.fillStyle='#f4dfad';ctx.font='700 24px "Be Vietnam Pro",sans-serif';ctx.fillText(food?'THỰC ĐƠN MÓN NHẬU':'THỰC ĐƠN BIA',150,40,270);

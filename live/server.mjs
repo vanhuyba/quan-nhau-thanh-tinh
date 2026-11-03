@@ -31,7 +31,9 @@ const settings = {
   rate: 8,                         // %
   music: true, mo: false, moBpm: 52,
   autoChant: false, chantEveryMin: 3,
+  announcementEnabled:false, announcementVoice:'vi-VN-HoaiMyNeural', sayText:'Mời cả nhà bình luận để ghé vào Quán Nhậu Thanh Tịnh, cùng ngồi chơi và tâm tình nhé!',
   seatMode: 'auto',                  // auto | 24 | 36 | 64 | 100 | 144 | 225 | 400
+  seatedIdleMinutes: 0,
   joinOnEnter: false,                // also seat viewers who only enter the room
   gifts: { readAll: true, minDiamonds: 1 },
 };
@@ -39,7 +41,7 @@ const viewers = new Map();           // id -> { id, name, skin, avatar, coins, j
 // Session rewards are separate from the durable all-time gift ledger.
 const sessionRewards = new Map();
 let admissionSeq = 0;
-let roomLikes=0,demoLikes=0;
+let roomLikes=0,demoLikes=0,likesRoomId='',likesSynced=false;
 const seenLikes=new Set();
 const MENU = [
   {
@@ -277,7 +279,7 @@ function skinFromText(t){
 }
 const DEFAULT_SKINS = ['man', 'woman', 'woman', 'man', 'granny'];
 
-function pub(v){ return { id:v.id, name:v.name, balance:v.balance||0, selectedMeal:v.selectedMeal||null, meals:v.meals||[], followed:!!v.followed, zone:v.zone||'dining', diningStartedAt:v.diningStartedAt||null,vipSeatedAt:v.vipSeatedAt||null, skin:v.skin, avatar:v.avatar||'', coins:v.coins, demo:!!v.demo, manualTier:v.manualTier||null, sessionCoins:v.sessionCoins||0, sausages:v.sausages||0, diningTier:v.diningTier||'queue', seatId:v.seatId||null, queuePosition:v.queuePosition||0 }; }
+function pub(v){ return { id:v.id, name:v.name, lastAt:v.lastAt, balance:v.balance||0, selectedMeal:v.selectedMeal||null, meals:v.meals||[], followed:!!v.followed, zone:v.zone||'dining', diningStartedAt:v.diningStartedAt||null,vipSeatedAt:v.vipSeatedAt||null, skin:v.skin, avatar:v.avatar||'', coins:v.coins, demo:!!v.demo, manualTier:v.manualTier||null, sessionCoins:v.sessionCoins||0, sausages:v.sausages||0, diningTier:v.diningTier||'queue', seatId:v.seatId||null, queuePosition:v.queuePosition||0 }; }
 function snapshot(){ return { t:'state',menu:MENU,danceNow,roomLikes, giftCatalog:GIFT_WISHES.map(({icon,label,topic})=>({icon,label,topic})), settings, euler:eulerStatus(), tables:TABLES, seats:DINING_SEATS, viewers:[...viewers.values()].map(pub), cap: capacity(), startedAt, tiktok: tiktokState }; }
 
 function seat(id, name, opts = {}){
@@ -300,13 +302,14 @@ function seat(id, name, opts = {}){
 }
 
 // Seats represent recent interaction, not TikTok concurrent viewers.
-const SEAT_IDLE_MS = 5 * 60_000;
+const SEAT_IDLE_MS = 2 * 60_000;
 function expireSeats(now = Date.now()){
   let changed=false;
   for (const [id, v] of viewers) {
     const r=reward(id);
-    if(v.seatId||r.zone==='dance') continue;
-    if (now - v.lastAt < SEAT_IDLE_MS) continue;
+    if(r.zone==='dance') continue;
+    const idleLimit=v.seatId?(settings.seatedIdleMinutes>0?settings.seatedIdleMinutes*60_000:Infinity):SEAT_IDLE_MS;
+    if (now - v.lastAt < idleLimit) continue;
     viewers.delete(id); changed=true;
     broadcast({ t:'leave', id });
   }
@@ -350,14 +353,19 @@ function onChat(id, name, text, avatar){
 
 }
 
-function onLike(id,count,eventId,simulated=false){
+function onLike(id,count,eventId,simulated=false,roomTotal){
   const n=Math.floor(Number(count));if(!Number.isSafeInteger(n)||n<=0)return;
   if(eventId&&!simulated){const key=String(eventId);if(seenLikes.has(key))return;seenLikes.add(key);if(seenLikes.size>2000)seenLikes.delete(seenLikes.values().next().value);}
+  if(!simulated && viewers.has(String(id)))viewers.get(String(id)).lastAt=Date.now();
   const before=simulated?demoLikes:roomLikes;
-  const total=before+n;if(!Number.isSafeInteger(total))return;
+  const authoritative=Number(roomTotal);
+  const hasTotal=!simulated&&roomTotal!==undefined&&Number.isSafeInteger(authoritative)&&authoritative>=0;
+  const initialSync=hasTotal&&!likesSynced;
+  const total=hasTotal?authoritative:before+n;if(!Number.isSafeInteger(total))return;
+  if(hasTotal)likesSynced=true;
   if(simulated)demoLikes=total;else roomLikes=total;
   broadcast({t:'like',id,n,total,simulated});
-  if(Math.floor(total/500)>Math.floor(before/500))broadcast({t:'roomCheers',total,milestone:Math.floor(total/500)*500,simulated,text:'Một, hai, ba... dô! 🍻',durationMs:8000});
+  if(!initialSync&&Math.floor(total/500)>Math.floor(before/500))broadcast({t:'roomCheers',total,milestone:Math.floor(total/500)*500,simulated,text:'Một, hai, ba... dô! 🍻',durationMs:8000});
 }
 function onFollow(id,name,avatar){
   if(!id)return;const {v}=seat(id,name,{avatar});if(!v)return;
@@ -431,7 +439,7 @@ async function pumpTTS(){
   if (ttsBusy || !ttsQueue.length) return; ttsBusy = true;
   const { text, meta } = ttsQueue.shift();
   const voices=[settings.voice,settings.voice==='vi-VN-HoaiMyNeural'?'vi-VN-NamMinhNeural':'vi-VN-HoaiMyNeural'];
-  const voice=voices[ttsVoiceTurn++ % 2];
+  const voice=['say','invite'].includes(meta.tag)?settings.announcementVoice:voices[ttsVoiceTurn++ % 2];
   let tts, timeout;
   try {
     const file = `tts_${Date.now()}_${++ttsSeq}.mp3`;
@@ -527,7 +535,7 @@ async function connectTikTok(uniqueId){
       const u = eventUser(d.user); seat(u.id, u.name, { avatar:u.avatar });
     });
     conn.on(WebcastEvent.LIKE, d => {
-      if(version === connectionVersion)onLike(eventUser(d.user).id,d.likeCount,d.common?.msgId||d.common?.messageId);
+      if(version === connectionVersion)onLike(eventUser(d.user).id,d.likeCount??d.count,d.common?.msgId||d.common?.messageId,false,d.totalLikeCount??d.total);
     });
     conn.on(ControlEvent.DISCONNECTED, () => { if (version !== connectionVersion) return; tiktokState = { ...tiktokState, status: 'disconnected' }; broadcast({ t:'tiktok', ...tiktokState }); addLog('TikTok: mất kết nối'); retryTikTok(uniqueId, version); });
     conn.on(ControlEvent.ERROR, e => addLog('TikTok lỗi: ' + redactEulerSecret(e?.info || e?.message || e)));
@@ -535,6 +543,8 @@ async function connectTikTok(uniqueId){
     if (version !== connectionVersion) { conn.disconnect(); return; }
     clearTimeout(retryTimer); retryAttempt = 0;
     tiktok = conn;
+    const newRoomId=String(st?.roomId||'');
+    if(newRoomId&&newRoomId!==likesRoomId){roomLikes=0;likesSynced=false;seenLikes.clear();likesRoomId=newRoomId;broadcast({t:'like',total:0,n:0,simulated:false});}
     tiktokState = { status: 'connected', uniqueId, error: '', roomId: st?.roomId || '' };
     addLog(`✅ Đã kết nối live @${uniqueId}`);
   } catch (e) {
@@ -596,6 +606,15 @@ function manualSeat(id,tier){
   const message=v.seatId?`Đã mời ${v.name} vào bàn ${v.seatId.split('-')[0]}.`:v.diningTier==='queue'?`${v.name} trở về hàng chờ theo xu.`:`Hạng ${v.diningTier==='vip'?'VIP':'bình dân'} đầy ghế; ${v.name} chờ lượt #${v.queuePosition}.`;
   broadcast({t:'manualSeatResult',ok:true,id:v.id,message},'control');addLog(message);return true;
 }
+function removeGuest(id){
+  id=String(id||'');const v=viewers.get(id);if(!v)return;
+  viewers.delete(id);
+  if(danceNow){danceNow.ids=danceNow.ids.filter(x=>x!==id);if(!danceNow.ids.length)danceNow=null;}
+  const r=reward(id);r.zone='dining';r.vipSeatedAt=null;
+  broadcast({t:'leave',id});syncDining();saveRuntimeSession();
+  addLog('Đã mời '+v.name+' rời quán; giữ lịch sử quà, có thể vào lại khi tương tác.');
+}
+
 /* ------------------------------------------------------------- control */
 function onControl(m){
   switch (m.cmd){
@@ -610,6 +629,7 @@ function onControl(m){
     case 'gift': { const n = String(m.name || 'Khách').slice(0, 18); onGift('sim_' + n, n, String(m.gift || 'Hoa hồng').slice(0, 30), clamp(m.count, 1, 99), clamp(m.diamonds, 1, 50000), undefined, true); break; }
     case 'fill': fillDemo(clamp(m.n, 1, MAX_SEATS)); addLog(`Đổ người mẫu: ${viewers.size} người`); break;
     case 'clear': clearSeats(); break;
+    case 'removeGuest': removeGuest(m.id); break;
     case 'manualSeat': manualSeat(m.id,m.tier); break;
     case 'setEulerKey': saveEulerKey(m.key); break;
     case 'tavernDemo': tavernDemo(); break;
@@ -629,6 +649,10 @@ const SETTING_RULES = {
   title: v => String(v).slice(0, 40), subtitle: v => String(v).slice(0, 60),
   voice: v => ['vi-VN-NamMinhNeural', 'vi-VN-HoaiMyNeural'].includes(v) ? v : settings.voice,
   pitch: v => clamp(v, -50, 50), rate: v => clamp(v, -50, 50), moBpm: v => clamp(v, 20, 120), chantEveryMin: v => clamp(v, 1, 60),
+  seatedIdleMinutes:v=>clamp(v,0,120),
+  announcementEnabled:Boolean,
+  announcementVoice:v=>['vi-VN-NamMinhNeural','vi-VN-HoaiMyNeural'].includes(v)?v:settings.announcementVoice,
+  sayText:v=>String(v).slice(0,400),
   music: Boolean, mo: Boolean, autoChant: Boolean, joinOnEnter: Boolean,
   seatMode: v => ['auto', ...CAPS.map(String)].includes(String(v)) ? String(v) : 'auto',
 };
@@ -637,13 +661,12 @@ function applySettings(o){ for (const [k, fn] of Object.entries(SETTING_RULES)) 
 
 /* ----------------------------------------------------------------- bots */
 let botTimer = null;
-const BOT_LINES = ['Nam mô A Di Đà Phật', 'Nam mô Bổn Sư Thích Ca Mâu Ni Phật', 'Cầu cho gia đình bình an', 'Con xin thành tâm sám hối', 'nữ', 'nam', 'bà',
-  'Nguyện cầu cha mẹ mạnh khỏe', 'Mô Phật, an lạc quá', 'Chúc mọi người một ngày bình an', 'sư', 'Cầu công việc hanh thông'];
+const BOT_LINES = ['Chủ quán ơi, cho bàn mình thêm bia nhé!', 'Gọi M04, thêm một đĩa khoai tây chiên nào!', 'Mồi ngon quá, mời cả bàn nâng ly!', 'Một, hai, ba... dô!', 'Hôm nay ai bao bàn mình đây?', 'Cho mình thêm đá với nhé!', 'Bàn bên cạnh vui quá, giao lưu một ly nào!', 'Anh em ăn món gì nữa, gọi thêm đi!', 'Cho bàn mình thêm xúc xích nướng!', 'Nhậu vui thôi, ai uống bia thì nhớ đừng lái xe nhé!', 'Chủ quán lên món nhanh quá!', 'Mời cả nhà ghé quán ngồi tám chuyện!'];
 function setBots(on, n, pace){
   clearInterval(botTimer); botTimer = null;
   if (on){
     n = clamp(n, 1, MAX_SEATS);
-    for (let i = 0; i < n; i++) seat('bot_' + i, DEMO_NAMES[(i + 7) % DEMO_NAMES.length] + ' ·bot', { demo: true });
+    for (let i = 0; i < n; i++) seat('bot_' + i, DEMO_NAMES[(i + 7) % DEMO_NAMES.length], { demo: true });
     const every = { slow: 4000, mid: 1800, fast: 700 }[pace] || 1800;
     botTimer = setInterval(() => {
       const ids = [...viewers.keys()].filter(id => id.startsWith('bot_')); if (!ids.length) return;
@@ -651,7 +674,7 @@ function setBots(on, n, pace){
       if (r < .62) onChat(id, v.name, BOT_LINES[Math.floor(Math.random() * BOT_LINES.length)]);
       else if (r < .9) broadcast({ t:'like', id, n: 1 + Math.floor(Math.random() * 4) });
       else if (r < .985) onGift(id, v.name, 'Hoa hồng', 1 + Math.floor(Math.random() * 3), 1, undefined, true);
-      else onGift(id, v.name, 'Đèn hoa sen', 1, 99, undefined, true);
+      else onGift(id, v.name, 'Pháo hoa', 1, 99, undefined, true);
     }, every);
     addLog(`🤖 Bật ${n} bot, nhịp ${pace}`);
   } else {
@@ -666,7 +689,7 @@ function setBots(on, n, pace){
 const SESSION_FILE=path.join(DATA_DIR,'session-state.json');
 function saveRuntimeSession(){
   try{
-    const checkpoint={version:1,danceNow,roomLikes,savedAt:Date.now(),startedAt,admissionSeq,settings,account:tiktokState.status==='connected'?tiktokState.uniqueId:'',viewers:[...viewers.values()],rewards:[...sessionRewards]};
+    const checkpoint={version:1,danceNow,roomLikes,likesRoomId,savedAt:Date.now(),startedAt,admissionSeq,settings,account:tiktokState.status==='connected'?tiktokState.uniqueId:'',viewers:[...viewers.values()],rewards:[...sessionRewards]};
     fs.writeFileSync(SESSION_FILE+'.tmp',JSON.stringify(checkpoint));fs.renameSync(SESSION_FILE+'.tmp',SESSION_FILE);
   }catch(e){addLog('Không lưu được trạng thái phiên: '+e.message);}
 }
@@ -675,6 +698,7 @@ function restoreRuntimeSession(){
     if(!fs.existsSync(SESSION_FILE))return '';
     const state=JSON.parse(fs.readFileSync(SESSION_FILE,'utf8'));
     if(state.version!==1||!Array.isArray(state.viewers)||!Array.isArray(state.rewards)||Date.now()-state.savedAt>24*60*60_000)return '';
+    likesRoomId=String(state.likesRoomId||'');likesSynced=false;
     roomLikes=Number.isSafeInteger(state.roomLikes)&&state.roomLikes>=0?state.roomLikes:0;
     danceNow=state.danceNow&&Array.isArray(state.danceNow.ids)?state.danceNow:null;
     applySettings(state.settings||{});startedAt=Number(state.startedAt)||startedAt;admissionSeq=Number(state.admissionSeq)||0;
@@ -682,6 +706,7 @@ function restoreRuntimeSession(){
     for(const p of state.viewers){
       if(!p?.id||viewers.size>=MAX_SEATS)continue;
       const v={...p,id:String(p.id),lastAt:Number(p.lastAt)||state.savedAt,joinedAt:Number(p.joinedAt)||state.savedAt};
+      if(v.demo && v.id.startsWith('bot_')){v.name=String(v.name).replace(/\s*[·\-]?\s*bot\s*$/i,'');v.lastText='';v.lastTextAt=0;}
       if(!v.demo){const latest=totals.get(v.id)||0;const delta=Math.max(0,latest-(Number(v.coins)||0));reward(v.id).sessionCoins+=delta;v.coins=latest;}
       if(reward(v.id).zone==='karaoke')reward(v.id).zone='dining';
       viewers.set(v.id,v);
@@ -705,6 +730,8 @@ const HOST = process.env.HOST || '127.0.0.1';
 const MIME = { '.html':'text/html; charset=utf-8', '.js':'text/javascript', '.css':'text/css', '.json':'application/json',
   '.png':'image/png', '.jpg':'image/jpeg', '.webp':'image/webp', '.mp3':'audio/mpeg', '.wav':'audio/wav', '.svg':'image/svg+xml', '.ico':'image/x-icon' };
 const ALLOWED_HOSTS = new Set([`localhost:${PORT}`, `127.0.0.1:${PORT}`, `[::1]:${PORT}`]);
+if(process.env.LAN_OVERLAY_HOST)ALLOWED_HOSTS.add(process.env.LAN_OVERLAY_HOST+':'+PORT);
+const isLocal=req=>['127.0.0.1','::1','::ffff:127.0.0.1'].includes(req.socket.remoteAddress);
 const okHost = h => ALLOWED_HOSTS.has(String(h || '').toLowerCase());
 const SEP = path.sep;
 function resolveStatic(urlPath){
@@ -721,6 +748,7 @@ const server = http.createServer((req, res) => {
   if (!okHost(req.headers.host)) { res.writeHead(421).end('wrong host'); return; }
   if (req.method !== 'GET' && req.method !== 'HEAD') { res.writeHead(405).end(); return; }
   let p; try { p = decodeURIComponent(new URL(req.url, 'http://x').pathname); } catch { res.writeHead(400).end(); return; }
+  if(!isLocal(req)&&p!=='/live/overlay.html'&&!p.startsWith('/assets/')&&!p.startsWith('/live/tts/')){res.writeHead(403).end('local control only');return;}
   const file = resolveStatic(p);
   if (!file) { res.writeHead(404).end('not found'); return; }
   fs.stat(file, (err, st) => {
@@ -734,6 +762,7 @@ const server = http.createServer((req, res) => {
 const wss = new WebSocketServer({ server, path: '/ws', maxPayload: 64 * 1024,
   verifyClient: ({ origin, req }) => {
     if (!okHost(req.headers.host)) return false;
+    if(!isLocal(req)&&new URL(req.url,'http://x').searchParams.get('role')!=='overlay')return false;
     if (!origin) return true;                                   // OBS / non-browser clients send no Origin
     try { return okHost(new URL(origin).host); } catch { return false; }
   } });
@@ -749,3 +778,6 @@ wss.on('connection', (ws, req) => {
   });
 });
 server.listen(PORT, HOST, () => {addLog(`Server chạy tại http://localhost:${PORT}  ·  Bảng điều khiển: http://localhost:${PORT}/live/control.html  ·  Overlay: http://localhost:${PORT}/live/overlay.html`);if(resumeAccount)connectTikTok(resumeAccount);});
+
+
+setInterval(()=>{if(settings.announcementEnabled && tiktokState.status==='connected' && settings.sayText.trim() && !ttsBusy && !ttsQueue.length)say(settings.sayText,{tag:'invite'});},180000);

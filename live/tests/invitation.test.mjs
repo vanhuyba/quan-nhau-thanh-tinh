@@ -23,3 +23,15 @@ test('fireworks require a single gift over 300 coins and expire after twenty sec
  a.particles.push({});a.drawGiftFireworks(20100,.016);assert.equal(a.particles.length,0);
  assert.equal(a.triggerGiftFireworks({coins:600},1000),true);assert.equal(a.until,21000);
 });
+
+
+test('announcement interval is opt-in, requires connected TikTok and reads saved text',()=>{
+ const server=fs.readFileSync(new URL('../server.mjs',import.meta.url),'utf8');
+ const calls=[];let callback,delay;
+ const settings={announcementEnabled:false,sayText:'Xin chào'};
+ const c=vm.createContext({settings,tiktokState:{status:'connected'},ttsBusy:false,ttsQueue:[],say:(...args)=>calls.push(args),setInterval:(fn,ms)=>{callback=fn;delay=ms;}});
+ vm.runInContext(server.slice(server.lastIndexOf('setInterval(()=>{if(settings.announcementEnabled')),c);
+ assert.equal(delay,180000);callback();assert.equal(calls.length,0);
+ settings.announcementEnabled=true;callback();assert.equal(calls[0][0],'Xin chào');assert.equal(calls[0][1].tag,'invite');
+ c.tiktokState.status='disconnected';callback();assert.equal(calls.length,1);
+});
