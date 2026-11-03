@@ -43,6 +43,7 @@ button.red{background:var(--red);border-color:#b84a33}
 #log{height:220px;overflow:auto;background:#101d16;border:1px solid var(--line);border-radius:10px;padding:8px;font:12px/1.5 ui-monospace,Consolas,monospace;white-space:pre-wrap;overflow-wrap:anywhere}
 [hidden]{display:none!important}.rules{display:grid;gap:8px}.rules div{padding:9px 11px;background:#102018;border:1px solid var(--line);border-radius:9px}.rules b{color:var(--gold)}.rules p{margin:5px 0 0}.section-title{font-size:18px!important;text-transform:none!important}.statline{display:flex;gap:8px;flex-wrap:wrap}.statline span{border:1px solid var(--line);padding:6px 10px;border-radius:8px;color:var(--muted)}details>summary{cursor:pointer;color:var(--gold);font-weight:600}details .test-content{display:grid;gap:10px;margin-top:14px}.mini-menu{line-height:1.8;color:var(--muted);font-size:13px}.card p{margin:2px 0 6px}#overlayUrl{font-family:ui-monospace,monospace;font-size:12px}#notice{color:#e8c88f;font-size:12px}
 .guest-name{font-weight:600}.guest-actions{display:flex;gap:5px;flex-wrap:wrap;margin-top:5px}.guest-actions button{font-size:11px;padding:4px 7px}.guest-actions button:disabled{opacity:.4;cursor:default}.manual-badge{font-size:10px;color:#dfc083;display:block}#manualStatus{min-height:18px;color:#e5cc97}
+.audio-demo-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:14px;margin-bottom:14px}.audio-demo-grid article{padding:14px;border:1px solid var(--line,#52604d);border-radius:12px;background:#17282055}.audio-demo-grid h3{margin:0 0 8px;font-size:17px}.audio-demo-grid p{font-size:14px;line-height:1.5;opacity:.85}.audio-demo-grid audio{display:block;width:100%;margin:12px 0}.audio-demo-grid a{font-size:14px;color:#ddc899}
 </style>
 </head>
 <body>
@@ -77,14 +78,22 @@ button.red{background:var(--red);border-color:#b84a33}
   <section class="card">
     <h2 class="section-title">2 · Âm thanh và cảnh quán</h2>
     <div class="row">
-      <label>Giọng cảm ơn quà / thông báo<select id="voice"><option value="vi-VN-NamMinhNeural">Nam Minh (nam)</option><option value="vi-VN-HoaiMyNeural">Hoài My (nữ)</option></select></label>
+      <label>Giọng đọc đầu tiên · Nam/nữ tự luân phiên<select id="voice"><option value="vi-VN-NamMinhNeural">Nam Minh (nam)</option><option value="vi-VN-HoaiMyNeural">Hoài My (nữ)</option></select></label>
     </div>
-    <div class="row"><label>Độ trầm (Hz)<input id="pitch" type="number" min="-50" max="50" value="-18"></label><label>Tốc độ (%)<input id="rate" type="number" min="-50" max="50" value="-20"></label></div>
+    <div class="row"><label>Cao độ (Hz)<input id="pitch" type="number" min="-50" max="50" value="2"></label><label>Tốc độ (%)<input id="rate" type="number" min="-50" max="50" value="8"></label></div>
     <label class="check"><input type="checkbox" id="music" checked> Nhạc nền quán</label>
     <label for="sayText">Thông báo do chủ quán nhập</label>
-    <textarea id="sayText">Chào mừng cả nhà đến Quán Nhậu Thanh Tịnh! Mời mọi người trò chuyện, gọi món và gọi bia thật thoải mái nhé.</textarea>
+    <textarea id="sayText">A lô, a lô! Quán bia Thanh Tịnh của em xin kính chào các anh chị!
+
+Bàn đã lên đèn, bia đã sẵn sàng, món ngon đang chờ!
+
+Mời cả nhà chọn bàn, gọi món, và cùng nâng ly nào!
+
+Một, hai, ba... dô!
+
+Chúc cả nhà có một buổi tối thật vui vẻ!</textarea>
     <button class="primary" id="btnSay">Đọc thông báo lên LIVE</button>
-    <p class="hint">Lời nhắc định kỳ dùng file giọng Nam Minh đã tạo sẵn. Chọn giọng ở trên áp dụng cho lời cảm ơn quà và thông báo nhập tay.</p>
+    <p class="hint">Hai lời mời định kỳ đã tắt. Giọng bên trên áp dụng cho cảm ơn quà và thông báo nhập tay. Mỗi500 tim, cả quán nâng ly. Chọn giọng ở trên áp dụng cho lời cảm ơn quà và thông báo nhập tay.</p>
     <label>Tên quán<input id="title" value="Quán Nhậu Thanh Tịnh" maxlength="40"></label>
     <label>Dòng phụ<input id="subtitle" value="Một góc bình yên · Một chút tâm tình" maxlength="60"></label>
     <label class="check"><input type="checkbox" id="joinOnEnter"> Cho người chỉ vào xem cũng đứng xếp hàng</label>
@@ -96,26 +105,48 @@ button.red{background:var(--red);border-color:#b84a33}
     <div class="rules">
       <div>💬 Bình luận → <b>đứng xếp hàng</b>; cùng một ID không tạo trùng nhân vật.</div>
       <div>👤 Bình luận <b>nam</b> → nhân vật nam; <b>nữ</b> hoặc <b>nu</b> → nhân vật nữ. Đổi ngay khi đang đứng hoặc ngồi, giữ nguyên ghế và xu.</div>
-      <div>🍺 <b>10–99 xu</b> → bàn bình dân. <b>Từ 100 xu</b> → bàn VIP.<p class="hint">Cộng dồn trong lần chạy server; lịch sử quà cũ không tính vào mốc phiên.</p></div>
+      <div>🍺 <b>10 xu hoặc follow mới trong phiên</b> → bàn bình dân. <b>Từ 100 xu</b> → bàn VIP.<p class="hint">Xu cộng dồn trong phiên và khôi phục qua checkpoint; lịch sử quà cũ không tính vào mốc phiên.</p></div>
       <div>🪑 <b>6 bàn bình dân + 2 bàn VIP</b> · 10 ghế/bàn · tổng <b>80 ghế</b>. Hết ghế chờ theo hạng, có ghế trống tự vào.</div>
-      <div>🌭 Quà đơn giá <b>1 xu</b> → 1 xúc xích/món; combo nhân theo số lượng.</div>
-      <div>🎆 Một lần quà <b>trên 300 xu</b> → pháo hoa <b>20 giây</b>. Đúng 300 xu chưa kích hoạt.</div>
-      <div>📣 <b>2 phút/lần</b>: mời tặng quà vào bàn. <b>5 phút/lần</b>: mời gọi món, gọi bia.<p class="hint">Chữ hiện theo lịch; tiếng chờ lời cảm ơn quà để không chồng âm thanh.</p></div>
+      <div>🌭 Quà đơn giá <b>1 xu</b> → 1 xúc xích/món khi chưa chọn món; combo nhân số lượng. Chat gọi M04 để chọn món; xu quà sẽ thanh toán lựa chọn. Quà đơn giá10xu chưa chọn món mặc định bia333.</div>
+      <div>🎆 Một lần quà <b>trên 300 xu</b> → pháo hoa <b>20 giây</b>. Đúng300xu không kích hoạt hiệu ứng quà riêng. Đơn món50–99xu nâng cốc,100–199xu pháo hoa, từ200xu chủ quán cảm ơn.</div>
+      <div>🍻 Mỗi500 tim mới → tất cả khách nâng ly “Một, hai, ba... dô!” trong8 giây. Hai thông báo định kỳ2/5 phút đã tắt. Tim thử đếm riêng, không cộng vào tim thật.</div>
       <div>✨ Khách được xếp ghế: <b>banner tên 8 giây</b>, làm nổi bật nhân vật <b>15 giây</b>.</div>
-      <div>🚪 <b>5 phút không bình luận/quà</b> → nhân vật off, trả ghế. Kiểm tra mỗi 15 giây.<p class="hint">Đây là hạn tương tác, chưa xác định chính xác từng người đã thoát LIVE.</p></div>
+      <div>🚪 <b>VIP ngồi10 phút</b> → nhảy nhạc sàn1 bài, rồi về bàn cũ. Khách có ghế được giữ trong quán; khách chưa có ghế timeout5 phút. Kiểm tra mỗi 15 giây.<p class="hint">Đây là hạn tương tác, chưa xác định chính xác từng người đã thoát LIVE.</p></div>
     </div>
-    <h2>Thực đơn trong lời mời 5 phút</h2>
-    <p class="mini-menu">Gà nướng muối ớt · Bò lúc lắc · Mực nướng · Tôm rang muối · Ốc xào dừa · Cá lóc nướng · Nem chua rán · Khoai tây chiên · Lẩu hải sản<br><b>Bia:</b> Sài Gòn · 333 · Tiger · Heineken · Larue · Hà Nội</p>
+    <h2>Chọn món trong menu</h2>
+    <p class="mini-menu">Mời cả nhà xem menu trong quán để chọn món nhậu và bia! Chat <b>gọi M04</b> hoặc <b>gọi B03</b>, hoặc gọi đúng tên món. Tặng quà đủ xu / dùng xu dư, nhân viên mang món tới đúng chỗ ngồi.</p>
     <p class="hint">Trạng thái phiên, quyền mời và ghế được lưu để khôi phục khi nạp lại server trong 24 giờ. Đọc comment theo giọng riêng và highlight đồng bộ người nói chưa được triển khai.</p>
   </section>
 </div>
 
-  <details class="card"><summary>Thử tương tác và mô phỏng</summary><div class="test-content"><p id="notice">Nút thử tạo dữ liệu mô phỏng trên cùng nguồn hình đang dùng để LIVE. Quà thử không ghi vào lịch sử quà thật.</p>
+
+<section class="card" id="audioDemos" style="margin:16px 0">
+  <h2>🎧 Demo âm thanh quán nhậu</h2>
+  <p class="hint">Bấm nghe để so sánh. Âm thanh chỉ phát ở bảng điều khiển này; chọn nghe chưa đổi âm thanh đang dùng trên overlay.</p>
+  <div style="padding:14px;margin:12px 0;border:1px solid #c5a466;border-radius:12px"><h3>🍻 Bản ghép 1 + 2 + 3 · đang dùng cho500 tim</h3><p>Hô123dzô làm chính, tiếng cụng ly vào sau2,8 giây, đám đông hưởng ứng sau3,5 giây. Tổng8 giây.</p><audio controls preload="none" aria-label="Nghe bản ghép dô cụng ly và reo vui" src="/assets/room-cheers-mix-v2.wav" style="width:100%"></audio></div>
+  <div class="audio-demo-grid">
+    <article><h3>1 · Hô “123 dzô” tiếng Việt</h3><p>Giọng người thật theo nguồn TiếngĐộng. Cần làm rõ quyền dùng trên LIVE trước khi áp dụng.</p><audio controls preload="none" aria-label="Nghe hô 123 dzô tiếng Việt" src="https://tiengdong.com/wp-content/uploads/tieng-ho-123-dzo-23-uong-giong-nu-www_tiengdong_com.mp3"></audio><a href="https://tiengdong.com/tieng-ho-123-dzo-23-uong-giong-nu" target="_blank" rel="noopener noreferrer">Mở nguồn TiếngĐộng</a></article>
+    <article><h3>2 · Tiếng cụng ly</h3><p>Mixkit · A couple of glasses clink · khoảng2 giây.</p><audio controls preload="none" aria-label="Nghe tiếng cụng ly" src="https://assets.mixkit.co/active_storage/sfx/154/154-preview.mp3"></audio><a href="https://mixkit.co/free-sound-effects/glass/" target="_blank" rel="noopener noreferrer">Mở nguồn Mixkit</a></article>
+    <article><h3>3 · Đám đông reo vui</h3><p>Mixkit · Male crowd cheering short · khoảng4 giây.</p><audio controls preload="none" aria-label="Nghe đám đông reo vui" src="https://assets.mixkit.co/active_storage/sfx/459/459-preview.mp3"></audio><a href="https://mixkit.co/free-sound-effects/crowd/" target="_blank" rel="noopener noreferrer">Mở nguồn Mixkit</a></article>
+    <article><h3>4 · Không khí quán đông vui</h3><p>Mixkit · Very crowded pub or party loop · khoảng36 giây.</p><audio controls preload="none" aria-label="Nghe không khí quán đông vui" src="https://assets.mixkit.co/active_storage/sfx/360/360-preview.mp3"></audio><a href="https://mixkit.co/free-sound-effects/crowd/" target="_blank" rel="noopener noreferrer">Mở nguồn Mixkit</a></article>
+    <article><h3>5 · Giọng tổng hợp cũ để đối chiếu</h3><p>Bản cũ, đã được thay bằng bản ghép1+2+3.</p><audio controls preload="none" aria-label="Nghe tiếng hô hiện tại" src="/assets/room-cheers-v1.wav"></audio></article>
+  </div>
+  <button id="stopAudioDemos">Dừng tất cả bản nghe thử</button>
+  <p id="audioDemoStatus" class="hint" role="status">Các bản nguồn ngoài cần kết nối mạng. Nếu không tải được, bấm Mở nguồn để nghe trực tiếp.</p>
+  <p class="hint"><a href="https://mixkit.co/license/modal/sfxFree/" target="_blank" rel="noopener noreferrer">Giấy phép hiệu ứng Mixkit</a></p>
+</section>
+<section class="card" id="uiScenario" style="margin:16px 0">
+<h2>▶ Demo tự động từng bước trên UI</h2>
+<p class="hint">Chạy với2 khách mô phỏng riêng. Mỗi bước dừng4 giây để quan sát overlay. Lượt nhảy phát đủ1 bài60 giây; mốc chờ VIP10 phút được mô phỏng bằng nút thử. Quà thử không ghi ledger thật.</p>
+<div class="row"><button id="runUiScenario">Chạy demo từ khách mới đến nâng ly</button><button id="stopUiScenario" disabled>Dừng demo</button><a href="/live/overlay.html" target="_blank" rel="noopener">Xem overlay</a></div>
+<p id="uiScenarioStatus" role="status">Sẵn sàng chạy trên nguồn hình hiện tại.</p><ol id="uiScenarioLog" style="line-height:1.7"></ol>
+</section>
+<details class="card"><summary>Thử tương tác và mô phỏng</summary><div class="test-content"><p id="notice">Nút thử tạo dữ liệu mô phỏng trên cùng nguồn hình đang dùng để LIVE. Quà thử không ghi vào lịch sử quà thật. Cùng tên thử sẽ giữ xu/follow đã thử trước đó. Muốn kiểm tra chỉ bình luận: bấm Dọn khách thử này rồi Gửi bình luận, hoặc dùng tên mới.</p>
     <label for="simName">Tên người xem</label>
     <input id="simName" value="Minh An">
     <label for="simText">Bình luận</label>
     <input id="simText" value="Chào quán, tối nay bình yên quá">
-    <div class="row"><button id="btnChat">Gửi bình luận</button></div>
+    <div class="row"><button id="btnChat">Gửi bình luận</button><button id="btnLikesTest">Thử 500 tim · cả quán dô</button><button id="btnFollowTest">Thử follow</button><button id="btnDanceTest">Thử VIP đủ 10 phút</button><button id="btnClearTest">Dọn khách thử này</button></div><p class="hint">Thử VIP đủ10 phút chỉ áp dụng khách mô phỏng đã có ghế VIP; phát một bài60 giây rồi tự về bàn. Dọn khách thử chỉ xóa khách mô phỏng có tên đang nhập.</p>
     <div class="row">
       <button data-gift="Hoa hồng" data-dia="1">Hoa hồng · 1</button>
       <button data-gift="Quà thử" data-dia="10">Bình dân · 10 xu</button>
@@ -141,9 +172,17 @@ button.red{background:var(--red);border-color:#b84a33}
 </section>
 <footer class="hint" style="margin-top:14px;text-align:center">Quán Nhậu Thanh Tịnh · phát triển từ mã nguồn MIT của Kent Juno</footer>
 
+<section class="card"><h2>🍽 Gọi món &amp; 💃 Sàn nhảy VIP</h2><p>VIP ngồi đủ10 phút sẽ lên sàn nhảy một bài60 giây, sau đó tự về ghế cũ. Ghế được giữ trong lúc nhảy. Mỗi lần về bàn bắt đầu lại mốc10 phút.</p><div id="mealStatus"></div><div id="danceStatus">Sàn nhảy đang chờ khách VIP</div><button id="danceStop">Kết thúc bài, mời về bàn</button></section>
 <script>
 const $ = id => document.getElementById(id);
+const demoPlayers=[...document.querySelectorAll('#audioDemos audio')];
+for(const audio of demoPlayers){
+  audio.addEventListener('play',()=>{for(const other of demoPlayers)if(other!==audio)other.pause();$('audioDemoStatus').textContent='Đang nghe: '+audio.getAttribute('aria-label')+' · chỉ phát tại bảng điều khiển.';});
+  audio.addEventListener('error',()=>{$('audioDemoStatus').textContent='Bản này chưa tải được. Bấm Mở nguồn để nghe trực tiếp hoặc thử lại kết nối mạng.';});
+}
+$('stopAudioDemos').onclick=()=>{for(const audio of demoPlayers){audio.pause();if(audio.readyState)audio.currentTime=0;}$('audioDemoStatus').textContent='Đã dừng tất cả bản nghe thử.';};
 let ws = null;
+let scenarioRoom=null,scenarioCheerCount=0,scenarioAbort=false,scenarioRunning=false;
 const send = (cmd, extra={}) => ws?.readyState===1 && ws.send(JSON.stringify({ t:'ctl', cmd, ...extra }));
 function logLine(s){ const el=$('log'); el.textContent += s + '\n'; el.scrollTop = el.scrollHeight; }
 const SETTING_IDS = ['voice','pitch','rate','music','title','subtitle','joinOnEnter'];
@@ -184,6 +223,13 @@ function connect(){
   ws.onclose = () => { $('srv').textContent='Server: mất kết nối'; $('srv').className='chip bad'; setTimeout(connect, 2000); };
   ws.onmessage = e => {
     const m = JSON.parse(e.data);
+    if(m.t==='state'||m.t==='room')scenarioRoom=m;
+    if(m.t==='roomCheers'&&m.simulated)scenarioCheerCount++;
+    if(m.t==='skin'){const v=scenarioRoom?.viewers.find(v=>v.id===m.id);if(v)v.skin=m.skin;}
+    if(m.t==='state'||m.t==='room'){
+      $('danceStatus').textContent=m.danceNow?'Đang phát: '+m.danceNow.title+' · '+m.danceNow.ids.length+' khách VIP':'Sàn nhảy đang chờ khách VIP';
+      $('mealStatus').textContent=(m.viewers||[]).map(v=>v.name+': '+(v.zone==='dance'?'đang nhảy':v.seatId||'chờ bàn')+' · dư '+(v.balance||0)+'xu').join(' | ');
+    }
     if (m.t==='state'){ fillSettings(m.settings); fillEuler(m.euler);setTT(m.tiktok); people.clear(); for (const v of m.viewers) people.set(v.id,v); renderPeople(); }
     else if (m.t==='room'){people.clear();for(const p of m.viewers)people.set(p.id,p);renderPeople();}
     else if (m.t==='settings')fillSettings(m.settings);
@@ -202,10 +248,15 @@ connect();
 
 $('btnSaveEuler').onclick=()=>{const key=$('eulerKey').value.trim();if(!key){$('eulerStatus').textContent='Hãy nhập API key Euler trước.';return;}send('setEulerKey',{key});};
 $('peopleSearch').addEventListener('input',renderPeople);
+$('danceStop').onclick=()=>send('danceStop');
 $('btnConnect').onclick = () => send('connect', { uniqueId: $('uid').value });
 $('uid').onkeydown = e => { if (e.key==='Enter') send('connect', { uniqueId: $('uid').value }); };
 $('btnDisconnect').onclick = () => send('disconnect');
 $('btnOverlay').onclick = () => window.open('/live/overlay.html', 'overlay916', 'width=540,height=960');
+$('btnLikesTest').onclick=()=>send('testLikes');
+$('btnFollowTest').onclick=()=>send('follow',{name:$('simName').value});
+$('btnDanceTest').onclick=()=>send('testDance',{name:$('simName').value});
+$('btnClearTest').onclick=()=>send('clearTestGuest',{name:$('simName').value});
 $('btnChat').onclick = () => send('chat', { name: $('simName').value, text: $('simText').value });
 document.querySelectorAll('[data-gift]').forEach(b => b.onclick = () => send('gift', { name: $('simName').value, gift: b.dataset.gift, diamonds: +b.dataset.dia, count: 1 }));
 document.querySelectorAll('[data-fill]').forEach(b => b.onclick = () => send('fill', { n: +b.dataset.fill }));
@@ -214,6 +265,54 @@ $('btnClear').onclick = () => send('clear');
 $('btnBots').onclick = () => send('bots', { on: $('btnBots').textContent.includes('Bật'), n: +$('botN').value, pace: $('botPace').value });
 $('btnSay').onclick = () => send('say', { text: $('sayText').value });
 for (const k of SETTING_IDS) $(k).addEventListener('change', () => send('settings', { settings: readSettings() }));
+
+const scenarioDelay=ms=>new Promise(resolve=>setTimeout(resolve,ms));
+$('stopUiScenario').onclick=()=>{scenarioAbort=true;$('uiScenarioStatus').textContent='Đang dừng và dọn riêng khách của demo…';};
+$('runUiScenario').onclick=async()=>{
+  if(scenarioRunning)return;
+  if(ws?.readyState!==1||!scenarioRoom){$('uiScenarioStatus').textContent='Chờ server kết nối trước khi chạy.';return;}
+  scenarioRunning=true;scenarioAbort=false;$('runUiScenario').disabled=true;$('stopUiScenario').disabled=false;$('uiScenarioLog').replaceChildren();
+  const stamp=Date.now().toString().slice(-5),first='UI Follow '+stamp,second='UI Qua '+stamp;
+  const guest=name=>scenarioRoom?.viewers.find(v=>v.id==='sim_'+name);
+  const check=async predicate=>{for(let i=0;i<50;i++){if(scenarioAbort)throw new Error('Đã dừng theo yêu cầu');if(predicate())return;await scenarioDelay(100);}throw new Error('Trạng thái UI chưa đúng sau5 giây');};
+  const step=async(label,cmd,args,predicate)=>{
+    if(scenarioAbort)throw new Error('Đã dừng theo yêu cầu');
+    $('uiScenarioStatus').textContent='Đang chạy: '+label;
+    send(cmd,args);await check(predicate);
+    const li=document.createElement('li');li.textContent='✅ '+label;$('uiScenarioLog').append(li);
+    await scenarioDelay(4000);
+  };
+  try{
+    await step('Khách1 bình luận → đứng hàng chờ','chat',{name:first,text:'Chào quán!'},()=>guest(first)?.diningTier==='queue'&&!guest(first)?.seatId);
+    await step('Khách1 follow → vào bàn bình dân','follow',{name:first},()=>!!guest(first)?.seatId&&guest(first)?.sessionCoins===0);
+    await step('Khách2 bình luận → đứng hàng chờ','chat',{name:second,text:'nam'},()=>guest(second)?.diningTier==='queue'&&!guest(second)?.seatId);
+    await step('Khách2 tặng1xu → nhận xúc xích, vẫn chờ bàn','gift',{name:second,diamonds:1,count:1,gift:'Hoa hồng'},()=>guest(second)?.sausages===1&&!guest(second)?.seatId);
+    await step('Khách2 tặng10xu → vào bàn và nhận bia333','gift',{name:second,diamonds:10,count:1,gift:'Quà thử'},()=>guest(second)?.diningTier==='regular'&&guest(second)?.meals.some(m=>m.code==='B03'));
+    await step('Chat gọi khoai tây chiên → chờ thanh toán','chat',{name:second,text:'gọi khoai tây chiên'},()=>guest(second)?.selectedMeal==='M04');
+    await step('Tặng10xu → phục vụ giao khoai tới đúng ghế','gift',{name:second,diamonds:10,count:1,gift:'Quà thử'},()=>guest(second)?.meals.some(m=>m.code==='M04'&&m.seatId===guest(second)?.seatId));
+    await step('Tặng100xu → nâng bàn VIP','gift',{name:second,diamonds:100,count:1,gift:'Quà VIP thử'},()=>guest(second)?.diningTier==='vip'&&!!guest(second)?.seatId);
+    const vipSeat=guest(second).seatId;
+    await step('Chat nữ → đổi nhân vật, giữ ghế và xu','chat',{name:second,text:'nữ'},()=>guest(second)?.skin==='woman'&&guest(second)?.seatId===vipSeat);
+    await step('Mô phỏng VIP đủ10 phút → đi lên sàn nhảy','testDance',{name:second},()=>guest(second)?.zone==='dance'&&guest(second)?.seatId===vipSeat);
+    for(let i=0;i<70;i++){
+      if(scenarioAbort)throw new Error('Đã dừng theo yêu cầu');
+      if(guest(second)?.zone==='dining'&&!scenarioRoom.danceNow)break;
+      $('uiScenarioStatus').textContent='Đang quan sát trọn bài nhảy60 giây · còn khoảng '+Math.max(0,Math.ceil(((scenarioRoom.danceNow?.endsAt||Date.now())-Date.now())/1000))+' giây';
+      await scenarioDelay(1000);
+    }
+    await check(()=>guest(second)?.zone==='dining'&&guest(second)?.seatId===vipSeat);
+    const returned=document.createElement('li');returned.textContent='✅ Hết1 bài → về đúng ghế VIP cũ';$('uiScenarioLog').append(returned);await scenarioDelay(4000);
+    const cheersBefore=scenarioCheerCount;
+    await step('Thử500tim → tất cả khách nâng ly và hô dô','testLikes',{},()=>scenarioCheerCount>cheersBefore);
+    await scenarioDelay(4500);
+    $('uiScenarioStatus').textContent='Hoàn tất12 bước UI, tất cả trạng thái đúng. Đang dọn khách của demo…';
+  }catch(error){const li=document.createElement('li');li.textContent='⛔ '+error.message;$('uiScenarioLog').append(li);$('uiScenarioStatus').textContent=error.message;}
+  finally{
+    send('clearTestGuest',{name:first});send('clearTestGuest',{name:second});await scenarioDelay(500);
+    if(!scenarioAbort&&$('uiScenarioLog').children.length===12)$('uiScenarioStatus').textContent='Hoàn tất12 bước UI · đã dọn2 khách demo · giữ nguyên khách khác.';
+    scenarioRunning=false;$('runUiScenario').disabled=false;$('stopUiScenario').disabled=true;
+  }
+};
 </script>
 </body>
 </html>

@@ -14,7 +14,7 @@ function setup(dir = fs.mkdtempSync(path.join(os.tmpdir(), 'chua-test-'))) {
   vm.createContext(sandbox);
   let code = source.slice(source.indexOf('const TTS_DIR'), source.indexOf('/* -------------------------------------------------------------- server */'));
   vm.runInContext(code + `\nrestoreRuntimeSession();settings.gifts.readAll=false; settings.gifts.minDiamonds=Infinity;
-    globalThis.api={saveEulerKey,readEulerKey,eulerStatus,snapshot,manualSeat,saveRuntimeSession,onChat,rebalanceDining,sessionRewards,DINING_SEATS,seat,capacity,giftWish,onGift,expireSeats,viewers,totals,connectTikTok,disconnectTikTok,
+    globalThis.api={onLike,onFollow,onControl,updateDance,reward,saveEulerKey,readEulerKey,eulerStatus,snapshot,manualSeat,saveRuntimeSession,onChat,rebalanceDining,sessionRewards,DINING_SEATS,seat,capacity,giftWish,onGift,expireSeats,viewers,totals,connectTikTok,disconnectTikTok,
     useLib(lib){TikTokLib=lib},get state(){return tiktokState}};`, sandbox);
   return { api:sandbox.api, dir, messages, timers };
 }
@@ -301,4 +301,81 @@ test('gender chat commands change one avatar while preserving table and rewards,
     assert.equal(restored.skin,'woman');
     assert.equal(restored.seatId,v.seatId);
   } finally { fs.rmSync(env.dir,{recursive:true,force:true}); }
+});
+
+test('menu payments preserve change, wait for seating and survive restore',()=>{
+ const e=setup();try{
+ e.api.onChat('u','Guest','gọi M04');e.api.onGift('u','Guest','Gift',1,15,undefined,true);
+ let v=e.api.viewers.get('u');assert.equal(v.meals[0].code,'M04');assert.equal(v.balance,5);assert.equal(v.sessionCoins,15);
+ e.api.onChat('u','Guest','gọi B03');e.api.onGift('u','Guest','Rose',5,1,undefined,true);
+ assert.equal(e.api.viewers.get('u').meals[1].code,'B03');assert.equal(e.api.viewers.get('u').sausages,0);
+ e.api.saveRuntimeSession();const r=setup(e.dir);assert.equal(r.api.viewers.get('u').meals.length,2);assert.equal(r.api.viewers.get('u').balance,0);
+ }finally{fs.rmSync(e.dir,{recursive:true,force:true});}
+});
+test('follow grants a regular seat; only seated VIPs dance after ten minutes and return to reserved seats',()=>{
+ const e=setup();try{
+ e.api.onFollow('u','Guest');const regular=e.api.viewers.get('u');assert.ok(regular.seatId);assert.equal(regular.sessionCoins,0);
+ e.api.onGift('vip','VIP','Gift',1,100,undefined,true);let v=e.api.viewers.get('vip');const seatId=v.seatId,start=v.vipSeatedAt;
+ e.api.expireSeats(start+9*60_000);assert.equal(e.api.snapshot().danceNow,null);
+ e.api.expireSeats(start+10*60_000);v=e.api.viewers.get('vip');assert.equal(v.zone,'dance');assert.equal(v.seatId,seatId);assert.equal(e.api.viewers.get('u').zone,undefined);
+ assert.equal(e.api.snapshot().danceNow.ids.length,1);assert.equal(e.api.snapshot().danceNow.durationMs,60000);
+ e.api.saveRuntimeSession();const r=setup(e.dir);assert.equal(r.api.snapshot().danceNow.ids[0],'vip');
+ e.api.expireSeats(start+11*60_000);v=e.api.viewers.get('vip');assert.equal(v.zone,'dining');assert.equal(v.seatId,seatId);assert.equal(e.api.snapshot().danceNow,null);
+ e.api.expireSeats(start+20*60_000);assert.equal(e.api.snapshot().danceNow,null);
+ }finally{fs.rmSync(e.dir,{recursive:true,force:true});}
+});
+test('controller simulations can fast-forward only a demo VIP and clean only that demo guest',()=>{
+ const e=setup();try{
+ e.api.onControl({cmd:'chat',name:'QA',text:'nam'});e.api.onControl({cmd:'gift',name:'QA',diamonds:100,count:1});
+ e.api.onControl({cmd:'testDance',name:'QA'});assert.equal(e.api.snapshot().danceNow.ids[0],'sim_QA');
+ e.api.onControl({cmd:'clearTestGuest',name:'QA'});assert.equal(e.api.viewers.has('sim_QA'),false);assert.equal(e.api.snapshot().danceNow,null);
+ const {v}=e.api.seat('sim_Protected','Protected');e.api.manualSeat(v.id,'vip');
+ e.api.onControl({cmd:'testDance',name:'Protected'});assert.equal(e.api.snapshot().danceNow,null);
+ e.api.onControl({cmd:'clearTestGuest',name:'Protected'});assert.ok(e.api.viewers.has(v.id));
+ }finally{fs.rmSync(e.dir,{recursive:true,force:true});}
+});
+test('meal effects use actual paid order value and retain change',()=>{
+ const e=setup();try{
+ e.api.onFollow('u','Guest');
+ for(const [code,amount,effect]of [['M07',20,'announce'],['M11',50,'cheers'],['M14',100,'fireworks'],['M15',301,'host']]){
+ e.api.onChat('u','Guest','gọi '+code);e.api.onGift('u','Guest','Gift',1,amount,undefined,true);
+ const meal=e.messages.filter(m=>m.t==='meal').at(-1);assert.equal(meal.effect,effect);assert.ok(meal.tableId);
+ }
+ assert.equal(e.api.reward('u').balance,1);
+ assert.equal(fs.existsSync(path.join(e.dir,'data/gifts.jsonl')),false);
+ }finally{fs.rmSync(e.dir,{recursive:true,force:true});}
+});
+test('chat orders accept dish names and codes, wait for payment, and address the exact guest seat',()=>{
+ const e=setup();try{
+ e.api.onFollow('a','First');e.api.onFollow('b','Second');
+ e.api.onChat('b','Second','gọi khoai tây chiên');assert.equal(e.api.reward('b').selectedMeal,'M04');
+ assert.equal(e.messages.filter(x=>x.t==='meal').length,0);
+ e.api.onGift('b','Second','Gift',1,10,undefined,true);
+ const meal=e.messages.filter(x=>x.t==='meal').at(-1);
+ assert.equal(meal.id,'b');assert.equal(meal.seatId,e.api.viewers.get('b').seatId);assert.notEqual(meal.seatId,e.api.viewers.get('a').seatId);assert.equal(meal.code,'M04');
+ e.api.onChat('b','Second','goi bia 333');assert.equal(e.api.reward('b').selectedMeal,'B03');
+ e.api.onChat('b','Second','gọi món không tồn tại');assert.equal(e.api.reward('b').selectedMeal,'B03');
+ assert.ok(e.messages.at(-1).text.includes('xem menu'));
+ }finally{fs.rmSync(e.dir,{recursive:true,force:true});}
+});
+test('comment alone queues; clearing simulation removes old gift/follow eligibility while preserving real rewards',()=>{
+ const e=setup();try{
+ e.api.onControl({cmd:'chat',name:'Fresh',text:'hello'});assert.equal(e.api.viewers.get('sim_Fresh').seatId,null);
+ e.api.onControl({cmd:'gift',name:'Fresh',diamonds:100,count:1});e.api.onControl({cmd:'follow',name:'Fresh'});assert.ok(e.api.viewers.get('sim_Fresh').seatId);
+ e.api.onFollow('real','Real');e.api.onControl({cmd:'clear'});
+ assert.equal(e.api.reward('real').followed,true);
+ e.api.onControl({cmd:'chat',name:'Fresh',text:'hello'});const v=e.api.viewers.get('sim_Fresh');assert.equal(v.seatId,null);assert.equal(v.sessionCoins,0);assert.equal(!!v.followed,false);
+ }finally{fs.rmSync(e.dir,{recursive:true,force:true});}
+});
+
+test('500 like milestones count deltas, deduplicate events, isolate simulations and survive restart',()=>{
+ const e=setup();try{
+ e.api.onLike('a',499,'one');assert.equal(e.messages.filter(m=>m.t==='roomCheers').length,0);
+ e.api.onLike('a',1,'two');assert.equal(e.messages.at(-1).milestone,500);
+ e.api.onLike('a',500,'two');assert.equal(e.api.snapshot().roomLikes,500);
+ e.api.onLike('a',500,null,true);assert.equal(e.api.snapshot().roomLikes,500);
+ e.api.onLike('a',600,'three');assert.equal(e.messages.at(-1).milestone,1000);assert.equal(e.api.snapshot().roomLikes,1100);
+ e.api.onLike('a',-1);e.api.onLike('a',NaN);assert.equal(e.api.snapshot().roomLikes,1100);
+ e.api.saveRuntimeSession();const r=setup(e.dir);assert.equal(r.api.snapshot().roomLikes,1100);
+ }finally{fs.rmSync(e.dir,{recursive:true,force:true});}
 });

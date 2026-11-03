@@ -6,6 +6,9 @@
 //   cd live && npm install && node server.mjs        → http://localhost:3000/live/control.html
 //
 import http from 'node:http';
+import { execFile } from 'node:child_process';
+import { promisify } from 'node:util';
+const execFileAsync = promisify(execFile);
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -23,9 +26,9 @@ const PORT = +process.env.PORT || 3000;
 const settings = {
   title: 'Quán Nhậu Thanh Tịnh',
   subtitle: 'Một góc bình yên · Một chút tâm tình',
-  voice: 'vi-VN-NamMinhNeural',      // or vi-VN-HoaiMyNeural
-  pitch: -18,                        // Hz
-  rate: -20,                         // %
+  voice: 'vi-VN-HoaiMyNeural',      // or vi-VN-HoaiMyNeural
+  pitch: 2,                        // Hz
+  rate: 8,                         // %
   music: true, mo: false, moBpm: 52,
   autoChant: false, chantEveryMin: 3,
   seatMode: 'auto',                  // auto | 24 | 36 | 64 | 100 | 144 | 225 | 400
@@ -36,9 +39,166 @@ const viewers = new Map();           // id -> { id, name, skin, avatar, coins, j
 // Session rewards are separate from the durable all-time gift ledger.
 const sessionRewards = new Map();
 let admissionSeq = 0;
+let roomLikes=0,demoLikes=0;
+const seenLikes=new Set();
+const MENU = [
+  {
+    "code": "M01",
+    "name": "Lạc rang húng lìu",
+    "price": 5,
+    "dish": "nuts"
+  },
+  {
+    "code": "M02",
+    "name": "Dưa chuột chẻ",
+    "price": 5,
+    "dish": "salad"
+  },
+  {
+    "code": "M03",
+    "name": "Rau muống xào tỏi",
+    "price": 10,
+    "dish": "salad"
+  },
+  {
+    "code": "M04",
+    "name": "Khoai tây chiên",
+    "price": 10,
+    "dish": "fries"
+  },
+  {
+    "code": "M05",
+    "name": "Nem chua rán",
+    "price": 15,
+    "dish": "springroll"
+  },
+  {
+    "code": "M06",
+    "name": "Đậu phụ tẩm hành",
+    "price": 15,
+    "dish": "nuts"
+  },
+  {
+    "code": "M07",
+    "name": "Ngao hấp sả",
+    "price": 20,
+    "dish": "clams"
+  },
+  {
+    "code": "M08",
+    "name": "Chân gà sả tắc",
+    "price": 25,
+    "dish": "chicken"
+  },
+  {
+    "code": "M09",
+    "name": "Cánh gà chiên mắm",
+    "price": 30,
+    "dish": "chicken"
+  },
+  {
+    "code": "M10",
+    "name": "Bò lúc lắc",
+    "price": 40,
+    "dish": "grill"
+  },
+  {
+    "code": "M11",
+    "name": "Mực nướng sa tế",
+    "price": 50,
+    "dish": "squid"
+  },
+  {
+    "code": "M12",
+    "name": "Tôm nướng muối ớt",
+    "price": 60,
+    "dish": "seafood"
+  },
+  {
+    "code": "M13",
+    "name": "Gà rang muối",
+    "price": 80,
+    "dish": "chicken"
+  },
+  {
+    "code": "M14",
+    "name": "Cá chép om dưa",
+    "price": 100,
+    "dish": "fish"
+  },
+  {
+    "code": "M15",
+    "name": "Lẩu Thái hải sản",
+    "price": 150,
+    "dish": "hotpot"
+  },
+  {
+    "code": "B01",
+    "name": "Bia hơi Hà Nội",
+    "price": 5,
+    "dish": "beer"
+  },
+  {
+    "code": "B02",
+    "name": "Bia Hà Nội (Habeco)",
+    "price": 10,
+    "dish": "beer"
+  },
+  {
+    "code": "B03",
+    "name": "Bia 333",
+    "price": 10,
+    "dish": "beer"
+  },
+  {
+    "code": "B04",
+    "name": "Bia Sài Gòn Lager",
+    "price": 10,
+    "dish": "beer"
+  },
+  {
+    "code": "B05",
+    "name": "Bia Sài Gòn Special",
+    "price": 15,
+    "dish": "beer"
+  },
+  {
+    "code": "B06",
+    "name": "Bia Huda",
+    "price": 15,
+    "dish": "beer"
+  },
+  {
+    "code": "B07",
+    "name": "Bia Larue",
+    "price": 15,
+    "dish": "beer"
+  },
+  {
+    "code": "B08",
+    "name": "Bia Tiger nâu",
+    "price": 20,
+    "dish": "beer"
+  },
+  {
+    "code": "B09",
+    "name": "Bia Tiger Crystal (bạc)",
+    "price": 30,
+    "dish": "beer"
+  },
+  {
+    "code": "B10",
+    "name": "Bia Heineken",
+    "price": 50,
+    "dish": "beer"
+  }
+];
+const DANCE_TRACK={url:'/assets/music/dance-floor-v1.wav',title:'Thanh Tịnh · Sàn đêm',durationMs:60_000};
+let danceNow=null;
+
 const TABLES = Array.from({length:8}, (_,i)=>({
   id: (i<2?'V':'B')+(i<2?i+1:i-1), tier:i<2?'vip':'regular',
-  x:i%2?775:305, y:880+Math.floor(i/2)*180, scale:.8+Math.floor(i/2)*.065,
+  x:i%2?852:498, y:900+Math.floor(i/2)*150, scale:.60+Math.floor(i/2)*.025,
 }));
 const DINING_SEATS = TABLES.flatMap(t=>Array.from({length:10},(_,i)=>({
   id:t.id+'-'+i, tableId:t.id, tier:t.tier,
@@ -54,23 +214,25 @@ function rebalanceDining(){
   const used=new Set();
   for(const v of viewers.values()){
     const r=reward(v.id); Object.assign(v,r);
-    const autoTier=diningTier(r.sessionCoins);
+    const autoTier=r.followed&&r.sessionCoins<10?'regular':diningTier(r.sessionCoins);
     const tier=autoTier==='vip'||r.manualTier==='vip'?'vip':autoTier==='regular'||r.manualTier==='regular'?'regular':'queue';
     if(v.diningTier!==tier){v.diningTier=tier;v.seatId=null;v.eligibleOrder=++admissionSeq;}
+    if(tier!=='vip'){r.vipSeatedAt=null;if(r.zone==='dance')r.zone='dining';}
     const current=DINING_SEATS.find(s=>s.id===v.seatId && s.tier===tier);
     if(current && !used.has(current.id)) used.add(current.id); else v.seatId=null;
   }
   for(const tier of ['vip','regular']){
     const waiting=[...viewers.values()].filter(v=>v.diningTier===tier&&!v.seatId).sort((a,b)=>a.eligibleOrder-b.eligibleOrder);
-    for(const v of waiting){const free=DINING_SEATS.find(s=>s.tier===tier&&!used.has(s.id));if(!free)break;v.seatId=free.id;used.add(free.id);}
+    for(const v of waiting){const free=DINING_SEATS.find(s=>s.tier===tier&&!used.has(s.id));if(!free)break;v.seatId=free.id;const r=reward(v.id);r.diningStartedAt ||= Date.now();v.diningStartedAt=r.diningStartedAt;used.add(free.id);}
   }
+  for(const v of viewers.values()){const r=reward(v.id);if(v.seatId&&v.diningTier==='vip'&&!r.vipSeatedAt)r.vipSeatedAt=Date.now();Object.assign(v,r);}
   const queues={queue:0,regular:0,vip:0};
   for(const v of [...viewers.values()].sort((a,b)=>a.eligibleOrder-b.eligibleOrder)){
     v.queuePosition=v.seatId?0:++queues[v.diningTier];
   }
 }
-function roomState(){return {t:'room',tables:TABLES,seats:DINING_SEATS,viewers:[...viewers.values()].map(pub)};}
-function syncDining(){rebalanceDining();broadcast(roomState());}
+function roomState(){return {t:'room',menu:MENU,danceNow,roomLikes,tables:TABLES,seats:DINING_SEATS,viewers:[...viewers.values()].map(pub)};}
+function syncDining(){rebalanceDining();for(const v of viewers.values())fulfillMeal(v.id);rebalanceDining();broadcast(roomState());}
 const DATA_DIR = path.join(__dirname, 'data');
 fs.mkdirSync(DATA_DIR, { recursive: true });
 const EULER_KEY_FILE=path.join(DATA_DIR,'euler-key.json');
@@ -115,8 +277,8 @@ function skinFromText(t){
 }
 const DEFAULT_SKINS = ['man', 'woman', 'woman', 'man', 'granny'];
 
-function pub(v){ return { id:v.id, name:v.name, skin:v.skin, avatar:v.avatar||'', coins:v.coins, demo:!!v.demo, manualTier:v.manualTier||null, sessionCoins:v.sessionCoins||0, sausages:v.sausages||0, diningTier:v.diningTier||'queue', seatId:v.seatId||null, queuePosition:v.queuePosition||0 }; }
-function snapshot(){ return { t:'state', giftCatalog:GIFT_WISHES.map(({icon,label,topic})=>({icon,label,topic})), settings, euler:eulerStatus(), tables:TABLES, seats:DINING_SEATS, viewers:[...viewers.values()].map(pub), cap: capacity(), startedAt, tiktok: tiktokState }; }
+function pub(v){ return { id:v.id, name:v.name, balance:v.balance||0, selectedMeal:v.selectedMeal||null, meals:v.meals||[], followed:!!v.followed, zone:v.zone||'dining', diningStartedAt:v.diningStartedAt||null,vipSeatedAt:v.vipSeatedAt||null, skin:v.skin, avatar:v.avatar||'', coins:v.coins, demo:!!v.demo, manualTier:v.manualTier||null, sessionCoins:v.sessionCoins||0, sausages:v.sausages||0, diningTier:v.diningTier||'queue', seatId:v.seatId||null, queuePosition:v.queuePosition||0 }; }
+function snapshot(){ return { t:'state',menu:MENU,danceNow,roomLikes, giftCatalog:GIFT_WISHES.map(({icon,label,topic})=>({icon,label,topic})), settings, euler:eulerStatus(), tables:TABLES, seats:DINING_SEATS, viewers:[...viewers.values()].map(pub), cap: capacity(), startedAt, tiktok: tiktokState }; }
 
 function seat(id, name, opts = {}){
   if (!id) return { v:null, isNew:false };
@@ -142,13 +304,29 @@ const SEAT_IDLE_MS = 5 * 60_000;
 function expireSeats(now = Date.now()){
   let changed=false;
   for (const [id, v] of viewers) {
+    const r=reward(id);
+    if(v.seatId||r.zone==='dance') continue;
     if (now - v.lastAt < SEAT_IDLE_MS) continue;
     viewers.delete(id); changed=true;
     broadcast({ t:'leave', id });
   }
+  if(updateDance(now))changed=true;
   if(changed) syncDining();
 }
+function updateDance(now=Date.now()){
+  let changed=false;
+  if(danceNow&&now>=danceNow.endsAt){
+    for(const id of danceNow.ids){const r=reward(id);r.zone='dining';r.vipSeatedAt=now;const v=viewers.get(id);if(v)v.lastAt=now;}
+    danceNow=null;changed=true;
+  }
+  if(!danceNow){
+    const ready=[...viewers.values()].filter(v=>v.seatId&&v.diningTier==='vip'&&reward(v.id).vipSeatedAt&&now-reward(v.id).vipSeatedAt>=10*60_000);
+    if(ready.length){danceNow={...DANCE_TRACK,startedAt:now,endsAt:now+DANCE_TRACK.durationMs,ids:ready.map(v=>v.id)};for(const v of ready)reward(v.id).zone='dance';changed=true;}
+  }
+  return changed;
+}
 setInterval(expireSeats, 15_000);
+setInterval(()=>{if(updateDance())syncDining();},1000);
 
 /* ------------------------------------------------------------- events in */
 function onChat(id, name, text, avatar){
@@ -159,8 +337,44 @@ function onChat(id, name, text, avatar){
   if (!isNew && want && want !== v.skin){ v.skin = want; broadcast({ t:'skin', id, skin: want }); }
   v.lastText = text; v.lastTextAt = Date.now();
   broadcast({ t:'chat', id, name: v.name, text });
+  const match=text.trim().match(/^(?:gọi|goi)\s+(.+)$/i);
+  if(match){
+    const normalize=s=>s.normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/đ/gi,'d').toLowerCase().replace(/\s+/g,' ').trim();
+    const query=normalize(match[1]),item=MENU.find(x=>normalize(x.code)===query||normalize(x.name)===query);
+    if(item){
+      const r=reward(id);r.selectedMeal=item.code;syncDining();
+      const message=r.selectedMeal?(!v.seatId?'Món được giữ chờ bạn vào bàn.':'Còn thiếu '+Math.max(0,item.price-(r.balance||0))+'xu, mời bạn tặng quà để thanh toán.'):'Đã nhận món, nhân viên đang mang đến chỗ bạn.';
+      broadcast({t:'notice',text:v.name+' chọn '+item.name+' · '+message});
+    }else broadcast({t:'notice',text:v.name+': Mời xem menu và chat gọi mã món, ví dụ gọi M04 hoặc gọi B03.'});
+  }
+
 }
 
+function onLike(id,count,eventId,simulated=false){
+  const n=Math.floor(Number(count));if(!Number.isSafeInteger(n)||n<=0)return;
+  if(eventId&&!simulated){const key=String(eventId);if(seenLikes.has(key))return;seenLikes.add(key);if(seenLikes.size>2000)seenLikes.delete(seenLikes.values().next().value);}
+  const before=simulated?demoLikes:roomLikes;
+  const total=before+n;if(!Number.isSafeInteger(total))return;
+  if(simulated)demoLikes=total;else roomLikes=total;
+  broadcast({t:'like',id,n,total,simulated});
+  if(Math.floor(total/500)>Math.floor(before/500))broadcast({t:'roomCheers',total,milestone:Math.floor(total/500)*500,simulated,text:'Một, hai, ba... dô! 🍻',durationMs:8000});
+}
+function onFollow(id,name,avatar){
+  if(!id)return;const {v}=seat(id,name,{avatar});if(!v)return;
+  const r=reward(String(id)),firstFollow=!r.followed;
+  r.followed=true;syncDining();
+  if(firstFollow)say('Cảm ơn '+spoken(v.name)+' đã theo dõi quán. Mời bạn nâng ly!',{tag:'follow',id:String(id)});
+}
+function fulfillMeal(id){
+  const r=reward(id),v=viewers.get(id),item=MENU.find(x=>x.code===r.selectedMeal);
+  if(!v||!v.seatId||!item||!(r.balance>=item.price))return;
+  const count=Math.min(99,Math.floor(r.balance/item.price));r.balance-=count*item.price;
+  r.meals ||= [];const meal={code:item.code,name:item.name,dish:item.dish,count,at:Date.now(),seatId:v.seatId,tableId:v.seatId.split('-')[0]};r.meals.push(meal);r.meals=r.meals.slice(-30);
+  r.selectedMeal=null;
+  const value=count*item.price;
+  broadcast({t:'meal',id,...meal,mealName:meal.name,name:v.name,value,effect:value>=200?'host':value>=100?'fireworks':value>=50?'cheers':value>=20?'announce':'serve'});
+  if(value>=20&&settings.gifts.readAll)say('Bàn '+meal.tableId+', '+spoken(v.name)+' gọi '+count+' '+item.name+'. '+(value>=200?'Chủ quán xin cảm ơn quý khách!':'Chúc cả bàn ngon miệng!'),{tag:'meal',id});
+}
 function onGift(id, name, giftName, count, diamonds, avatar, simulated = false){
   giftName = String(giftName || 'quà').slice(0, 30); count = Math.max(1, Math.min(9999, +count || 1));
   if (!id) return;
@@ -175,8 +389,13 @@ function onGift(id, name, giftName, count, diamonds, avatar, simulated = false){
     catch (e) { addLog('Không lưu được lịch sử quà: ' + e.message); }
   }
   const r=reward(id); r.sessionCoins+=coins;
-  const sausageCount=Number(diamonds)===1?count:0; r.sausages+=sausageCount;
+  r.balance ||= 0;
+  const sausageCount=Number(diamonds)===1&&!r.selectedMeal?count:0; r.sausages+=sausageCount;
+  r.balance+=coins-sausageCount;
+  if(!r.selectedMeal&&Number(diamonds)===10)r.selectedMeal='B03';
   syncDining();
+  if(sausageCount){r.meals ||= [];r.meals.push({code:'S01',name:'Xúc xích',dish:'sausage',count:sausageCount,at:Date.now()});r.meals=r.meals.slice(-30);broadcast({t:'meal',id,name:v.name,seatId:v.seatId,tableId:v.seatId?.split('-')[0],dish:'sausage',count:sausageCount,value:sausageCount,effect:'serve'});}
+  fulfillMeal(id);syncDining();
   const { prayer, topic, icon } = giftWish(giftName);
   const tier = coins >= 100 ? 3 : coins >= 10 ? 2 : 1;
   const line = `Cảm ơn ${spoken(v.name)} đã gửi ${giftName}${count > 1 ? ' nhân ' + count : ''}. ${sausageCount ? 'Quán tặng bạn '+sausageCount+' cây xúc xích.' : 'Mời bạn ghé bàn '+(r.sessionCoins>=100?'VIP':r.sessionCoins>=10?'bình dân':'khi đủ 10 xu')+'.'}`;
@@ -205,27 +424,40 @@ function giftWish(name){
 const spoken = s => String(s).replace(/[_@.]+/g, ' ').replace(/[^\p{L}\p{N}\s]/gu, '').trim() || 'ẩn danh';
 
 /* ------------------------------------------------------------------ TTS */
-const ttsQueue = []; let ttsBusy = false, ttsSeq = 0;
+const ttsQueue = []; let ttsBusy = false, ttsSeq = 0, ttsVoiceTurn = 0;
 function esc(s){ return String(s).replace(/[<>&"']/g, c => ({'<':'&lt;','>':'&gt;','&':'&amp;','"':'&quot;',"'":'&apos;'}[c])); }
 function say(text, meta = {}){ if (ttsQueue.length >= 15) { addLog('Hàng đợi giọng đọc đầy, bỏ qua 1 câu'); return; } ttsQueue.push({ text: String(text).slice(0, 500), meta }); pumpTTS(); }
 async function pumpTTS(){
   if (ttsBusy || !ttsQueue.length) return; ttsBusy = true;
   const { text, meta } = ttsQueue.shift();
+  const voices=[settings.voice,settings.voice==='vi-VN-HoaiMyNeural'?'vi-VN-NamMinhNeural':'vi-VN-HoaiMyNeural'];
+  const voice=voices[ttsVoiceTurn++ % 2];
   let tts, timeout;
   try {
     const file = `tts_${Date.now()}_${++ttsSeq}.mp3`;
+    const python=path.join(__dirname,'.tts-venv','bin','python');
+    if(fs.existsSync(python)){
+      const result=await execFileAsync(python,[path.join(__dirname,'synthesize.py'),text,voice,`${settings.rate>=0?'+':''}${settings.rate}%`,`${settings.pitch>=0?'+':''}${settings.pitch}Hz`,path.join(TTS_DIR,file)],{timeout:120000});
+      addLog('TTS '+voice+' · '+result.stdout.trim());
+      if(fs.statSync(path.join(TTS_DIR,file)).size<1000)throw new Error('File giọng đọc rỗng');
+      broadcast({t:'tts',url:`/live/tts/${file}`,text,voice,...meta});
+      const old=fs.readdirSync(TTS_DIR).filter(f=>!f.endsWith('.part')).sort();while(old.length>40){try{fs.unlinkSync(path.join(TTS_DIR,old.shift()));}catch{}}
+      return;
+    }
     tts = new MsEdgeTTS();
     const deadline = new Promise((_, reject) => { timeout = setTimeout(() => reject(new Error('Quá thời gian tạo giọng đọc')), 20000); });
-    await Promise.race([tts.setMetadata(settings.voice, OUTPUT_FORMAT.AUDIO_24KHZ_96KBITRATE_MONO_MP3), deadline]);
+    await Promise.race([tts.setMetadata(voice, OUTPUT_FORMAT.AUDIO_24KHZ_96KBITRATE_MONO_MP3), deadline]);
     const { audioStream } = tts.toStream(esc(text), { pitch: `${settings.pitch >= 0 ? '+' : ''}${settings.pitch}Hz`, rate: `${settings.rate >= 0 ? '+' : ''}${settings.rate}%` });
     const chunks = [];
     await Promise.race([new Promise((res, rej) => { audioStream.on('data', c => chunks.push(c)); audioStream.on('close', res); audioStream.on('error', rej); }), deadline]);
     fs.writeFileSync(path.join(TTS_DIR, file), Buffer.concat(chunks));
     broadcast({ t:'tts', url: `/live/tts/${file}`, text, ...meta });
     const old = fs.readdirSync(TTS_DIR).sort(); while (old.length > 40) { try { fs.unlinkSync(path.join(TTS_DIR, old.shift())); } catch {} }
-  } catch (e) { addLog('TTS lỗi: ' + (e?.message || e)); }
-  finally { clearTimeout(timeout); try { tts?.close(); } catch {} }
-  ttsBusy = false; setTimeout(pumpTTS, 50);
+  } catch (e) {
+    addLog('TTS Edge lỗi ('+voice+'): '+(e?.code==='ETIMEDOUT'?'Quá thời gian tạo giọng đọc':String(e?.message||e).split('\n')[0]).slice(0,180));
+
+  }
+  finally { clearTimeout(timeout); try { tts?.close(); } catch {} ttsBusy=false;setTimeout(pumpTTS,50); }
 }
 
 const CHANTS = [
@@ -289,12 +521,13 @@ async function connectTikTok(uniqueId){
       onGift(u.id, u.name, g.name, g.count, g.diamonds, u.avatar);
       addLog(`🎁 ${u.name} tặng ${g.name} x${g.count}`);
     });
+    conn.on(WebcastEvent.FOLLOW, d => {if(version!==connectionVersion)return;const u=eventUser(d.user);onFollow(u.id,u.name,u.avatar);});
     conn.on(WebcastEvent.MEMBER, d => {
       if (version !== connectionVersion || !settings.joinOnEnter) return;
       const u = eventUser(d.user); seat(u.id, u.name, { avatar:u.avatar });
     });
     conn.on(WebcastEvent.LIKE, d => {
-      if(version === connectionVersion) broadcast({ t:'like', id:eventUser(d.user).id, n:d.likeCount || 1 });
+      if(version === connectionVersion)onLike(eventUser(d.user).id,d.likeCount,d.common?.msgId||d.common?.messageId);
     });
     conn.on(ControlEvent.DISCONNECTED, () => { if (version !== connectionVersion) return; tiktokState = { ...tiktokState, status: 'disconnected' }; broadcast({ t:'tiktok', ...tiktokState }); addLog('TikTok: mất kết nối'); retryTikTok(uniqueId, version); });
     conn.on(ControlEvent.ERROR, e => addLog('TikTok lỗi: ' + redactEulerSecret(e?.info || e?.message || e)));
@@ -344,7 +577,12 @@ function tavernDemo(){
   }
   syncDining(); addLog('Preview: 20 VIP, 60 bình dân, 6 khách xếp hàng (có khách nhận xúc xích)');
 }
-function clearSeats(){ viewers.clear(); rebalanceDining(); broadcast(snapshot()); addLog('Đã làm trống bồ đoàn'); }
+function clearSeats(){
+  // A new simulation must not inherit old test gifts/follows after clearing the scene.
+  for(const [id,v] of viewers)if(v.demo)sessionRewards.delete(id);
+  for(const id of sessionRewards.keys())if(id.startsWith('sim_')||id.startsWith('preview_'))sessionRewards.delete(id);
+  viewers.clear();danceNow=null;rebalanceDining();saveRuntimeSession();broadcast(snapshot());addLog('Đã làm trống quán và quyền khách mô phỏng; giữ phần thưởng khách thật.');
+}
 
 function manualSeat(id,tier){
   const v=viewers.get(String(id||''));
@@ -361,9 +599,14 @@ function manualSeat(id,tier){
 /* ------------------------------------------------------------- control */
 function onControl(m){
   switch (m.cmd){
+    case 'testLikes': onLike('',500,null,true);break;
+    case 'testDance': {const id='sim_'+String(m.name||'Khách').slice(0,18),v=viewers.get(id);if(v?.demo&&v.diningTier==='vip'&&v.seatId){reward(id).vipSeatedAt=Date.now()-10*60_000;updateDance();syncDining();}break;}
+    case 'clearTestGuest': {const id='sim_'+String(m.name||'Khách').slice(0,18),v=viewers.get(id);if(v?.demo){viewers.delete(id);sessionRewards.delete(id);if(danceNow){danceNow.ids=danceNow.ids.filter(x=>x!==id);if(!danceNow.ids.length)danceNow=null;}broadcast({t:'leave',id});syncDining();}break;}
+    case 'danceStop': if(danceNow){danceNow.endsAt=Date.now();updateDance();syncDining();}break;
+    case 'follow': {const n=String(m.name||'Khách').slice(0,18);onFollow('sim_'+n,n);const v=viewers.get('sim_'+n);if(v)v.demo=true;break;}
     case 'connect': connectTikTok(m.uniqueId); break;
     case 'disconnect': disconnectTikTok(); addLog('Đã ngắt kết nối TikTok'); break;
-    case 'chat': { const n = String(m.name || 'Khách').slice(0, 18); onChat('sim_' + n, n, String(m.text || 'Nam mô A Di Đà Phật').slice(0, 120)); break; }
+    case 'chat': { const n = String(m.name || 'Khách').slice(0, 18); onChat('sim_' + n, n, String(m.text || 'Chào quán').slice(0, 120));const v=viewers.get('sim_'+n);if(v)v.demo=true;break; }
     case 'gift': { const n = String(m.name || 'Khách').slice(0, 18); onGift('sim_' + n, n, String(m.gift || 'Hoa hồng').slice(0, 30), clamp(m.count, 1, 99), clamp(m.diamonds, 1, 50000), undefined, true); break; }
     case 'fill': fillDemo(clamp(m.n, 1, MAX_SEATS)); addLog(`Đổ người mẫu: ${viewers.size} người`); break;
     case 'clear': clearSeats(); break;
@@ -423,7 +666,7 @@ function setBots(on, n, pace){
 const SESSION_FILE=path.join(DATA_DIR,'session-state.json');
 function saveRuntimeSession(){
   try{
-    const checkpoint={version:1,savedAt:Date.now(),startedAt,admissionSeq,settings,account:tiktokState.status==='connected'?tiktokState.uniqueId:'',viewers:[...viewers.values()],rewards:[...sessionRewards]};
+    const checkpoint={version:1,danceNow,roomLikes,savedAt:Date.now(),startedAt,admissionSeq,settings,account:tiktokState.status==='connected'?tiktokState.uniqueId:'',viewers:[...viewers.values()],rewards:[...sessionRewards]};
     fs.writeFileSync(SESSION_FILE+'.tmp',JSON.stringify(checkpoint));fs.renameSync(SESSION_FILE+'.tmp',SESSION_FILE);
   }catch(e){addLog('Không lưu được trạng thái phiên: '+e.message);}
 }
@@ -432,12 +675,15 @@ function restoreRuntimeSession(){
     if(!fs.existsSync(SESSION_FILE))return '';
     const state=JSON.parse(fs.readFileSync(SESSION_FILE,'utf8'));
     if(state.version!==1||!Array.isArray(state.viewers)||!Array.isArray(state.rewards)||Date.now()-state.savedAt>24*60*60_000)return '';
+    roomLikes=Number.isSafeInteger(state.roomLikes)&&state.roomLikes>=0?state.roomLikes:0;
+    danceNow=state.danceNow&&Array.isArray(state.danceNow.ids)?state.danceNow:null;
     applySettings(state.settings||{});startedAt=Number(state.startedAt)||startedAt;admissionSeq=Number(state.admissionSeq)||0;
     for(const [id,r]of state.rewards)if(typeof id==='string'&&r&&Number.isFinite(r.sessionCoins))sessionRewards.set(id,r);
     for(const p of state.viewers){
       if(!p?.id||viewers.size>=MAX_SEATS)continue;
       const v={...p,id:String(p.id),lastAt:Number(p.lastAt)||state.savedAt,joinedAt:Number(p.joinedAt)||state.savedAt};
       if(!v.demo){const latest=totals.get(v.id)||0;const delta=Math.max(0,latest-(Number(v.coins)||0));reward(v.id).sessionCoins+=delta;v.coins=latest;}
+      if(reward(v.id).zone==='karaoke')reward(v.id).zone='dining';
       viewers.set(v.id,v);
     }
     rebalanceDining();expireSeats();addLog(`Khôi phục ${viewers.size} khách và quyền ngồi của phiên.`);
@@ -457,7 +703,7 @@ setInterval(saveRuntimeSession,2000);
 //  • no TikTok password, cookie or session is ever used or stored; only public room events are read
 const HOST = process.env.HOST || '127.0.0.1';
 const MIME = { '.html':'text/html; charset=utf-8', '.js':'text/javascript', '.css':'text/css', '.json':'application/json',
-  '.png':'image/png', '.jpg':'image/jpeg', '.webp':'image/webp', '.mp3':'audio/mpeg', '.svg':'image/svg+xml', '.ico':'image/x-icon' };
+  '.png':'image/png', '.jpg':'image/jpeg', '.webp':'image/webp', '.mp3':'audio/mpeg', '.wav':'audio/wav', '.svg':'image/svg+xml', '.ico':'image/x-icon' };
 const ALLOWED_HOSTS = new Set([`localhost:${PORT}`, `127.0.0.1:${PORT}`, `[::1]:${PORT}`]);
 const okHost = h => ALLOWED_HOSTS.has(String(h || '').toLowerCase());
 const SEP = path.sep;

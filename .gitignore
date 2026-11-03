@@ -7,3 +7,7 @@ live/tts/
 Thumbs.db
 
 live/data/
+
+live/.tts-venv/
+
+__pycache__/

@@ -3,20 +3,14 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import vm from 'node:vm';
 const html=fs.readFileSync(new URL('../overlay.html',import.meta.url),'utf8');
-const code=html.slice(html.indexOf('const INVITATION_TEXT='),html.indexOf('/* ======================= effects'));
-test('independent two and five minute reminders retain one pending voice each and prioritize gifts',()=>{
- const shown=[],queued=[];
- const sandbox={performance:{now:()=>0},giftHide:null,ttsPlaying:false,ttsQ:[],AC:{state:'running'},setInterval(){},clearTimeout(){},setTimeout(){},document:{getElementById:id=>id==='invitationText'?{set textContent(t){shown.push(t);}}:{classList:{add(){},remove(){}}}},queueTTS:(url,start)=>queued.push({url,start})};
- vm.createContext(sandbox);vm.runInContext(code+'\nglobalThis.tick=maybeInviteGuests;',sandbox);
- sandbox.tick(119999);assert.equal(shown.length,0);
- sandbox.giftHide=1;sandbox.tick(120000);assert.equal(shown.length,1);assert.equal(queued.length,0);
- sandbox.tick(240000);assert.equal(shown.length,2);
- sandbox.tick(300000);assert.ok(shown.at(-1).includes('Tiger'));assert.equal(queued.length,0);
- sandbox.giftHide=null;sandbox.tick(301000);assert.equal(queued.length,1);assert.ok(queued[0].url.includes('table-invitation'));
- sandbox.ttsPlaying=true;sandbox.tick(302000);assert.equal(queued.length,1);
- sandbox.ttsPlaying=false;sandbox.tick(303000);assert.equal(queued.length,2);assert.ok(queued[1].url.includes('order-invitation'));
- sandbox.tick(304000);assert.equal(queued.length,2);
- sandbox.giftHide=1;sandbox.tick(600000);assert.ok(shown.at(-1).includes('10 xu'));assert.ok(shown.at(-1).includes('Tiger'));
+test('periodic announcements are disabled and room cheers raise every guest for eight seconds',()=>{
+ assert.ok(!html.includes('setInterval(maybeInviteGuests'));
+ assert.ok(!html.includes('order-invitation-v4.wav'));
+ const visitors=new Map([['a',{}],['b',{}]]),notice={textContent:''};
+ const c=vm.createContext({queueTTS(){},visitors,document:{getElementById:()=>notice},performance:{now:()=>100}});
+ const code=html.slice(html.indexOf('let cheersUntil='),html.indexOf('/* ======================= effects'));
+ vm.runInContext(code+';globalThis.cheer=triggerRoomCheers;',c);c.cheer({milestone:500});
+ assert.ok(notice.textContent.includes('500 tim'));for(const v of visitors.values())assert.equal(v.bubble.until,8100);
 });
 
 test('fireworks require a single gift over 300 coins and expire after twenty seconds',()=>{

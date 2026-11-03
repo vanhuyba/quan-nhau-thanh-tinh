@@ -91,6 +91,17 @@ html,body{margin:0;height:100%;background:#000;overflow:hidden;font-family:var(-
 #seatWelcome{left:200px;right:200px;top:930px;padding:18px 24px;text-align:center;background:rgba(23,48,35,.96);border:2px solid #e7c778;border-radius:20px;z-index:7;opacity:0;visibility:hidden;pointer-events:none;box-shadow:0 0 35px #e5c17633}
 #seatWelcome.show{opacity:1;visibility:visible}#seatWelcome small{display:block;font-size:19px;letter-spacing:.12em;color:#d7c69e}#seatWelcome strong{display:block;font:700 38px var(--display);color:#ffdf8f;margin:8px 0;overflow-wrap:anywhere}#seatWelcome span{font-size:24px;color:#f6ecd9}
 .firework-rule{color:#ffe1a0;background:rgba(158,109,35,.16);border-radius:8px;padding:10px!important;border:1px solid #b5955455!important}
+
+#plaque{top:35px;left:280px;right:160px;height:90px;gap:3px}#title{font-size:31px}#subtitle{font-size:17px}#plaque::before,#plaque::after{display:none}
+#pills{top:140px;left:360px;right:50px}.pill{font-size:19px;padding:7px 14px}#guide{top:225px;right:30px;width:270px;font-size:17px}#merit{display:none}
+#unmute{top:auto;bottom:35px;font-size:20px;padding:12px 22px}
+#orderNotice{position:absolute;top:690px;left:365px;right:25px;min-height:40px;text-align:center;color:#ffdf8f;font-size:24px;background:#183526db;border-radius:12px;padding:12px}#karaoke{position:absolute;left:375px;right:40px;top:1440px;padding:8px;background:#182d2470;border:1px solid #c4a0e1;border-radius:16px;font-size:20px;color:#f4e6ff}#karaoke h3{margin:0 0 4px;font-size:20px}#songList{font-size:17px}#queueLabel{top:1690px}#seatWelcome{top:735px;left:370px;right:30px}#seatWelcome strong{font-size:29px}
+/* Notices sit over the roof, clear of tables and the guide on the right. */
+#orderNotice{top:300px;left:55px;right:385px;min-height:28px;padding:8px 12px;font-size:20px;box-sizing:border-box;background:rgba(20,35,29,.65);z-index:6}
+#seatWelcome{top:360px;left:55px;right:385px;padding:8px 12px;border-width:1px;border-radius:12px;background:rgba(20,35,29,.75);box-sizing:border-box}
+#seatWelcome small{font-size:16px}#seatWelcome strong{font-size:28px;margin:4px 0}#seatWelcome span{font-size:19px}
+#heartProgress{position:absolute;left:120px;top:137px;width:370px;padding:8px 12px;border:1px solid #c9ab7455;border-radius:10px;background:rgba(20,35,29,.72);color:#ffe4bc;font-size:17px;box-sizing:border-box;z-index:5}
+#heartTrack{height:8px;margin-top:5px;background:#ffffff22;border-radius:8px;overflow:hidden}#heartFill{height:100%;width:0;background:linear-gradient(90deg,#e78292,#ffd18b);transition:width .4s}#heartText{display:flex;justify-content:space-between;gap:8px}
 </style>
 </head>
 <body>
@@ -104,12 +115,14 @@ html,body{margin:0;height:100%;background:#000;overflow:hidden;font-family:var(-
   <div id="guide" class="card ui">
     <div>💬 Bình luận → <b>xếp hàng</b></div>
     <div>👤 Chat <b>nam / nữ</b> → đổi nhân vật</div>
-    <div>🍺 <b>10–99 xu</b> · Bàn bình dân</div>
+    <div>🍺 <b>10 xu hoặc follow</b> · Vào bàn</div>
     <div>✦ <b>Từ 100 xu</b> · Bàn VIP</div>
     <div>🌭 Quà 1 xu → <b>1 xúc xích/món</b></div>
-    <div class="firework-rule">🎆 Quà <b>trên 300 xu</b><br>Pháo hoa rực rỡ <b>20 giây</b></div>
+    <div class="firework-rule">🍽 Chat <b>gọi M01 / gọi B03</b><br>Tặng quà → thanh toán món</div>
     <div class="rule-note">Xu cộng dồn trong phiên · Hết ghế chờ theo hạng</div>
   </div>
+  <div id="heartProgress" role="progressbar" aria-label="Tim đến mốc nâng ly" aria-valuemin="0" aria-valuemax="500" aria-valuenow="0"><div id="heartText"><span>♥ <b id="heartCount">0 / 500</b> tim</span><span id="heartGoal">Cùng nâng ly</span></div><div id="heartTrack"><div id="heartFill"></div></div></div>
+  <div id="orderNotice">Chat gọi M04 · Tặng xu để thanh toán</div><div id="karaoke"><h3>💃 SÀN NHẢY VIP</h3><div id="songList">Ngồi bàn VIP đủ 10 phút · Nhảy 1 bài rồi về bàn</div></div>
   <div id="queueLabel" class="ui">KHU XẾP HÀNG · CHÀO BẠN GHÉ QUÁN</div>
   <div id="merit" class="card ui"><h3>✦ Bạn hữu của quán ✦</h3><ol id="meritList"><li class="empty">Chưa có</li></ol></div>
 
@@ -136,14 +149,17 @@ function indexPeople(im){
   const surface=document.createElement('canvas');surface.width=im.naturalWidth;surface.height=im.naturalHeight;
   const c=surface.getContext('2d',{willReadFrequently:true});c.drawImage(im,0,0);
   const data=c.getImageData(0,0,surface.width,surface.height).data;
-  const cw=surface.width/2,ch=surface.height/3;
+  const cw=surface.width/2;
+  // The chef hat crosses the nominal 1024px grid line in this atlas.
+  const rowEdges=[0,surface.height/3,surface.height*964/1536,surface.height];
   for(let row=0;row<3;row++)for(let col=0;col<2;col++){
+    const rowY=Math.round(rowEdges[row]),ch=Math.round(rowEdges[row+1])-rowY;
     let left=cw,top=ch,right=0,bottom=0;
     for(let y=0;y<ch;y++)for(let x=0;x<cw;x++){
-      if(data[((row*ch+y)*surface.width+col*cw+x)*4+3]<32)continue;
+      if(data[((rowY+y)*surface.width+col*cw+x)*4+3]<32)continue;
       left=Math.min(left,x);right=Math.max(right,x);top=Math.min(top,y);bottom=Math.max(bottom,y);
     }
-    peopleCells.push({x:col*cw+left,y:row*ch+top,w:Math.max(1,right-left+1),h:Math.max(1,bottom-top+1)});
+    peopleCells.push({x:col*cw+left,y:rowY+top,w:Math.max(1,right-left+1),h:Math.max(1,bottom-top+1)});
   }
 }
 function indexStaff(im){
@@ -162,6 +178,57 @@ function person(cell,x,y,height,flip=false){
   ctx.save();ctx.translate(x,y);if(flip)ctx.scale(-1,1);
   ctx.drawImage(A.people,crop.x,crop.y,crop.w,crop.h,-width/2,-height,width,height);ctx.restore();
 }
+// Articulated animation uses the existing ordinary-clothes atlas, preserving each guest's appearance.
+function motionPose(mode,now,phase=0){
+  const beat=now/1000*Math.PI*4+phase,dance=mode==='dance';
+  return {beat,bob:-Math.abs(Math.sin(beat))*(dance?.013:.007),sway:dance?Math.sin(beat*.5)*.014:0,tilt:Math.sin(beat*.5)*(dance?.025:.009),step:Math.sin(beat)};
+}
+// A single continuous skin mesh replaces detached rectangular body parts.
+// Adjacent triangles share the exact same vertices, so shoulders, hips and knees stay joined.
+function meshPoint(u,v,height,width,p,dance,staff){
+  const smooth=(a,b,t)=>{const q=Math.max(0,Math.min(1,(t-a)/(b-a)));return q*q*(3-2*q);};
+  const leg=smooth(staff?.74:.58,1,v),side=u<.5?-1:1;
+  const edge=Math.abs(u-.5)*2,arm=Math.exp(-Math.pow((v-.49)/.14,2))*edge*edge;
+  const upper=Math.sin(v*Math.PI),stride=p.step*side;
+  const x=(u-.5)*width+height*(p.sway+Math.sin(p.beat*.5)*upper*(dance?.014:.003)+leg*stride*(dance?.013:.012));
+  const y=(v-1)*height+height*(p.bob-leg*Math.max(0,stride)*(dance?.011:.012)-(!staff&&dance?arm*(.012+.012*Math.sin(p.beat*.5+side)):0));
+  return {x,y};
+}
+function texturedTriangle(im,src,dst){
+  const [a,b,c]=src,[p,q,r]=dst,det=(b.x-a.x)*(c.y-a.y)-(c.x-a.x)*(b.y-a.y);
+  if(Math.abs(det)<.0001)return;
+  const ax=((q.x-p.x)*(c.y-a.y)-(r.x-p.x)*(b.y-a.y))/det;
+  const bx=((r.x-p.x)*(b.x-a.x)-(q.x-p.x)*(c.x-a.x))/det;
+  const ay=((q.y-p.y)*(c.y-a.y)-(r.y-p.y)*(b.y-a.y))/det;
+  const by=((r.y-p.y)*(b.x-a.x)-(q.y-p.y)*(c.x-a.x))/det;
+  const cx=(p.x+q.x+r.x)/3,cy=(p.y+q.y+r.y)/3;
+  ctx.save();ctx.beginPath();
+  // Subpixel overlap hides canvas antialias seams without separating the skin.
+  for(const [i,t]of dst.entries()){const dx=t.x-cx,dy=t.y-cy,n=Math.hypot(dx,dy)||1;const x=t.x+dx/n*.25,y=t.y+dy/n*.25;if(i===0)ctx.moveTo(x,y);else ctx.lineTo(x,y);}
+  ctx.closePath();ctx.clip();ctx.transform(ax,ay,bx,by,p.x-ax*a.x-bx*a.y,p.y-ay*a.x-by*a.y);ctx.drawImage(im,0,0);ctx.restore();
+}
+const animationTextures=new WeakMap();
+function animationTexture(im,c){
+  let entries=animationTextures.get(im);if(!entries){entries=new Map();animationTextures.set(im,entries);}
+  const key=[c.x,c.y,c.w,c.h].join(',');if(entries.has(key))return entries.get(key);
+  const canvas=document.createElement('canvas');canvas.width=Math.ceil(c.w);canvas.height=Math.ceil(c.h);
+  canvas.getContext('2d').drawImage(im,c.x,c.y,c.w,c.h,0,0,canvas.width,canvas.height);entries.set(key,canvas);return canvas;
+}
+function animatedArt(im,c,x,y,height,flip,mode,now,phase=0,staff=false){
+  if(!c||!im?.naturalWidth)return;
+  const tex=animationTexture(im,c),width=height*c.w/c.h,p=motionPose(mode,now,phase),dance=mode==='dance';
+  const us=[0,.25,.5,.75,1],vs=[0,.2,.34,.48,.60,.72,.85,1];
+  const source=vs.map(v=>us.map(u=>({x:u*tex.width,y:v*tex.height})));
+  const points=vs.map(v=>us.map(u=>meshPoint(u,v,height,width,p,dance,staff)));
+  ctx.save();ctx.translate(x,y);if(flip)ctx.scale(-1,1);ctx.rotate(p.tilt);
+  for(let row=0;row<vs.length-1;row++)for(let col=0;col<us.length-1;col++){
+    const a=source[row][col],b=source[row][col+1],c=source[row+1][col],d=source[row+1][col+1];
+    const p=points[row][col],q=points[row][col+1],r=points[row+1][col],s=points[row+1][col+1];
+    texturedTriangle(tex,[a,b,c],[p,q,r]);texturedTriangle(tex,[b,d,c],[q,s,r]);
+  }
+  ctx.restore();
+}
+function animatedPerson(cell,x,y,height,flip,mode,now,phase=0){animatedArt(A.people,peopleCells[cell],x,y,height,flip,mode,now,phase);}
 function kitchen(now){
   const t=now/1000;
   // Work within the kitchen opening and mask legs behind the counter.
@@ -182,29 +249,47 @@ function kitchen(now){
   for(let i=0;i<3;i++){const f=(t*.13+i/3)%1;ctx.globalAlpha=(1-f)*.18;ctx.beginPath();ctx.moveTo(344+i*8,640-f*55);ctx.quadraticCurveTo(330+i*8,620-f*55,348+i*8,605-f*55);ctx.stroke();}ctx.restore();
 }
 // Serving staff follow the central aisle, briefly approaching a table before returning.
-const SERVICE_ROUTE=[[540,770],[540,910],[580,910],[540,910],[540,1090],[590,1090],[540,1090],[540,1450],[590,1450],[540,1450],[540,770]];
+const SERVICE_ROUTE=[[675,790],[675,1460],[675,790]];
+let mealDelivery=null;const mealDeliveryQueue=[];let hostThanks=null,currentDancers=new Set(),menuItems=[];
 function serverAt(now,index=0){
+  if(!index&&(!mealDelivery||now>=mealDelivery.until)){mealDelivery=null;if(mealDeliveryQueue.length){mealDelivery={...mealDeliveryQueue.shift(),start:now,until:now+8000};}}
+  if(!index&&mealDelivery&&now<mealDelivery.until){
+    // Keep the order's destination: later VIP upgrades must not redirect a meal to another table.
+    const seat=seats.find(s=>s.id===mealDelivery.seatId&&s.id.startsWith(mealDelivery.tableId+'-'));
+    const table=tables.find(t=>t.id===mealDelivery.tableId);
+    if(table){
+      const sideX=seat?.x??(table.x<675?table.x+185*table.scale+28:table.x-185*table.scale-28);
+      const stopY=seat?(seat.side==='back'?table.y-90*table.scale-20:table.y+140*table.scale):table.y+25*table.scale;
+      const elapsed=now-mealDelivery.start;
+      const progress=elapsed<3200?elapsed/3200:elapsed<=4800?1:(8000-elapsed)/3200;
+      const vertical=stopY-790,horizontal=Math.abs(sideX-675),distance=Math.max(0,progress)*(vertical+horizontal);
+      const x=distance<=vertical?675:675+Math.sign(sideX-675)*(distance-vertical);
+      return {x,y:790+Math.min(distance,vertical),flip:sideX<675,server:true,index:0,serving:elapsed>=3200&&elapsed<=4800,delivery:mealDelivery};
+    }
+  }
   const segments=SERVICE_ROUTE.slice(1).map((p,i)=>Math.hypot(p[0]-SERVICE_ROUTE[i][0],p[1]-SERVICE_ROUTE[i][1]));
   const total=segments.reduce((a,b)=>a+b,0);let d=(now/1000*66+240+index*total*.5)%total;
   for(let i=0;i<segments.length;i++){
     if(d>segments[i]){d-=segments[i];continue;}
     const a=SERVICE_ROUTE[i],b=SERVICE_ROUTE[i+1],f=d/segments[i];
-    return {x:a[0]+(b[0]-a[0])*f+(index? -32:20),y:a[1]+(b[1]-a[1])*f,flip:b[0]<a[0],server:true,index};
+    return {x:a[0]+(b[0]-a[0])*f+(index?18:-18),y:a[1]+(b[1]-a[1])*f,flip:b[0]<a[0],server:true,index};
   }
 }
 function drawServer(p,now){
+  if(p.delivery){ctx.save();ctx.textAlign='center';ctx.font='600 17px \"Be Vietnam Pro\",sans-serif';ctx.fillStyle='#ffe6ab';ctx.fillText('🍽 Bàn '+p.delivery.tableId+' · '+p.delivery.name,p.x,p.y-150,230);ctx.restore();}
   const h=122+(p.y-770)*.037;
   ctx.save();ellipse(p.x,p.y,20,7,'#0003');
   const y=p.y+Math.sin(now*.01)*1.5;
   if(p.index&&maleServerCrop){
     const c=maleServerCrop,w=h*c.w/c.h;ctx.save();ctx.translate(p.x,y);if(p.flip)ctx.scale(-1,1);
-    ctx.drawImage(A.maleServer,c.x,c.y,c.w,c.h,-w/2,-h,w,h);ctx.restore();
-  }else person(5,p.x,y,h,p.flip);
+    ctx.restore();animatedArt(A.maleServer,c,p.x,y,h,p.flip,'walk',now,Math.PI,true);
+  }else animatedArt(A.people,peopleCells[5],p.x,y,h,p.flip,p.serving?'idle':'walk',now,0,true);
+  if(p.delivery){const tx=p.x+(p.flip?-1:1)*h*.25,ty=y-h*.51;dish(tx,ty,p.delivery.dish||'salad',.45);if(p.serving){ctx.strokeStyle='#f1ca7b';ctx.lineWidth=2;ctx.beginPath();ctx.ellipse(p.x,p.y,28,10,0,0,Math.PI*2);ctx.stroke();}}
   ctx.font='500 15px "Be Vietnam Pro",sans-serif';ctx.fillStyle='#f3e2bd';ctx.textAlign='center';ctx.fillText(p.index?'Phục vụ nam':'Phục vụ nữ',p.x,p.y-h-9);ctx.restore();
 }
 function vipZone(){
   if(!tables.length)return;
-  ctx.save();ctx.fillStyle='#203f3380';rr(105,790,870,215,24);ctx.fill();ctx.strokeStyle='#c9ac6b88';ctx.lineWidth=2;ctx.stroke();
+  ctx.save();ctx.fillStyle='#203f3380';rr(350,810,700,165,24);ctx.fill();ctx.strokeStyle='#c9ac6b88';ctx.lineWidth=2;ctx.stroke();
   ctx.fillStyle='#233e31e6';rr(392,744,296,42,15);ctx.fill();ctx.strokeStyle='#e0c17e';ctx.stroke();
   ctx.font='700 24px "Be Vietnam Pro",sans-serif';ctx.textAlign='center';ctx.fillStyle='#f6d994';ctx.fillText('✦ KHU VIP · 100 XU ✦',540,773);ctx.restore();
 }
@@ -216,10 +301,15 @@ function avatar(url){ if(!url) return null; let im=avatars.get(url); if(!im){ im
 const FLOOR = { yTop: 1215, yBot: 1845, halfTop: 290, halfBot: 430 };
 const GRID = { 24:[6,4], 36:[6,6], 64:[8,8], 100:[10,10], 144:[12,12], 225:[15,15], 400:[20,20] };
 let cap=80, seats=[], tables=[];
+const danceAudio=new Audio();danceAudio.id='danceMusic';danceAudio.hidden=true;document.body.append(danceAudio);let danceTrack='';
+danceAudio.onended=()=>{danceTrack='';playMusic();};
+danceAudio.onerror=()=>{document.getElementById('orderNotice').textContent='Không phát được nhạc sàn';danceTrack='';playMusic();};
+
 const visitors=new Map();
 let order=[];
 function layout(){cap=80;reseat();}
 function targetFor(v){
+  if(v.zone==='dance'){const i=[...currentDancers].indexOf(v.id);return {x:430+(i%8)*72,y:1615+Math.floor(i/8)*55,scale:.29,standing:true};}
   const assigned=seats.find(s=>s.id===v.seatId);
   if(assigned) return {...assigned,standing:false};
   const waiting=[...visitors.values()].filter(p=>!p.seatId).sort((a,b)=>
@@ -256,6 +346,10 @@ function nextWelcome(){
   setTimeout(()=>{el.classList.remove('show');welcomeBusy=false;nextWelcome();},8000);
 }
 function applyRoom(m,instant=false){
+  currentDancers=new Set(m.danceNow?.ids||[]);menuItems=m.menu||menuItems;
+  const track=m.danceNow&&Date.now()<m.danceNow.endsAt?m.danceNow.url+'?v='+m.danceNow.startedAt:'';
+  if(track!==danceTrack){danceAudio.pause();danceTrack=track;if(track){musicEl?.pause();danceAudio.src=track;danceAudio.onloadedmetadata=()=>{danceAudio.currentTime=Math.min(danceAudio.duration-.05,Math.max(0,(Date.now()-m.danceNow.startedAt)/1000));};danceAudio.play().catch(()=>{document.getElementById('orderNotice').textContent='Bấm bật âm thanh để phát nhạc sàn';});}else playMusic();}
+  document.getElementById('songList').textContent=m.danceNow?'♫ '+m.danceNow.title:'Ngồi bàn VIP đủ 10 phút · Nhảy 1 bài';
   tables=m.tables||tables;seats=m.seats||seats;
   const ids=new Set(m.viewers.map(v=>v.id));
   for(const id of visitors.keys())if(!ids.has(id))visitors.delete(id);
@@ -287,6 +381,7 @@ function drawChair(s){
 }
 function dish(x,y,type,size=1){
   ctx.save();ctx.translate(x,y);ctx.scale(size,size);
+  if(type==='beer'){ctx.fillStyle='#e7c36b';rr(-12,-31,24,35,4);ctx.fill();ctx.strokeStyle='#e9e6c0';ctx.lineWidth=3;ctx.strokeRect(12,-24,8,18);ellipse(0,-31,13,5,'#fff1cf');ctx.restore();return;}
   ellipse(0,2,35,15,'#0005');ellipse(0,0,35,14,'#ede4cc');ellipse(0,-1,29,10,'#c9d1ad');
   if(type==='grill'){
     for(let i=0;i<5;i++){ctx.save();ctx.translate(-19+i*9,-2+(i%2)*4);ctx.rotate(-.25);ctx.fillStyle='#88502b';rr(-5,-7,11,14,3);ctx.fill();ctx.strokeStyle='#472c1e';ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(-3,-3);ctx.lineTo(3,-1);ctx.moveTo(-3,2);ctx.lineTo(3,4);ctx.stroke();ctx.restore();}
@@ -332,9 +427,10 @@ function drawTable(t){
   else{ctx.strokeStyle='#422a1b33';ctx.lineWidth=2;for(let y=-70;y<30;y+=15){ctx.beginPath();ctx.moveTo(-180,y);ctx.lineTo(180,y);ctx.stroke();}}
   ctx.restore();
   // Three compact rows leave the table edge free for drinks and place settings.
-  const menu=vip?['seafood','fish','squid','grill','springroll','hotpot','chicken','salad','sausage','fries','clams','nuts']:['grill','squid','chicken','sausage','salad','springroll','fries','clams','nuts'];
-  const positions=vip?[[-100,-61],[-35,-63],[35,-63],[100,-61],[-113,-33],[-39,-32],[39,-32],[113,-33],[-100,-2],[-35,-2],[35,-2],[100,-2]]:[[-84,-60],[0,-62],[84,-60],[-98,-31],[0,-31],[98,-31],[-84,-2],[0,-2],[84,-2]];
-  positions.forEach(([x,y],i)=>dish(x,y,menu[i],vip?.77:.88));
+  const ordered=[...visitors.values()].filter(v=>v.seatId?.startsWith(t.id+'-')).flatMap(v=>(v.meals||[]).filter(m=>Date.now()-m.at<30*60_000));
+  const houseDishes=(vip?['salad','chicken','clams','fries','springroll','hotpot']:['salad','fries','chicken']).map(dish=>({dish}));
+  const tableDishes=[...houseDishes,...ordered].slice(-9);
+  tableDishes.forEach((m,i)=>{const x=-90+(i%3)*90,y=-60+Math.floor(i/3)*30;if(m.dish==='beer'){ctx.fillStyle='#dbac43';ctx.fillRect(x-6,y-10,13,23);ellipse(x,y-10,7,3,'#fff2cd');}else dish(x,y,m.dish,.8);});
   if(vip){ellipse(-151,-36,17,7,'#e3d9b9');ctx.fillStyle='#aab6ac';rr(-165,-59,28,25,3);ctx.fill();ellipse(-151,-59,14,5,'#d4dccc');ctx.fillStyle='#6c8253';ctx.fillRect(-154,-79,7,23);ctx.fillStyle='#ddc99b';ctx.fillRect(-154,-68,7,7);}
   for(const x of [-152,-118,118,152]){if(vip&&x<0)continue;ctx.fillStyle='#eee7c18c';rr(x-6,-35,13,23,3);ctx.fill();ctx.fillStyle='#d9a749';ctx.fillRect(x-4,-27,9,13);ellipse(x+.5,-33,5,2,'#f5e9c5');}
   // Small dipping sauce and chopsticks make the meal readable at stream size.
@@ -388,6 +484,7 @@ let AC=null, master=null, musicGain=null, sfx=null, settings={ music:true, mo:tr
 const TRACKS=['/assets/music/music1.mp3','/assets/music/music2.mp3']; let trackIdx=Math.floor(Math.random()*TRACKS.length), musicEl=null,musicRetry=null,musicLastTime=0,musicLastProgress=0;
 document.getElementById('unmute').onclick = () => startAudio();
 async function startAudio(){
+  if(danceTrack)danceAudio.play().then(()=>{document.getElementById('orderNotice').textContent='♫ Nhạc sàn đang phát · Hết bài về bàn';}).catch(()=>{});
   if (AC) { await AC.resume(); if (AC.state==='running') document.getElementById('unmute')?.remove(); if(!musicEl)nextTrack();else if(musicEl.paused)playMusic();playTTS();return; }
   AC = new (window.AudioContext||window.webkitAudioContext)();
   master = AC.createGain(); master.gain.value=.9; master.connect(AC.destination);
@@ -398,7 +495,7 @@ async function startAudio(){
   nextTrack(); scheduleMo(); bell(); playTTS();
 }
 function playMusic(){
-  if(!musicEl||!AC)return;
+  if(!musicEl||!AC||danceTrack)return;
   musicEl.muted=false;
   musicEl.play().catch(error=>{
     console.warn('Nhạc nền chưa phát được:',error.name);
@@ -446,35 +543,21 @@ function playTTS(){
   if (ttsPlaying || !ttsQ.length || !AC) return; ttsPlaying=true;
   while (ttsQ.length && Date.now()-ttsQ[0].at > 60000) ttsQ.shift();
   if (!ttsQ.length) { ttsPlaying=false; return; }
-  const {url,onStart}=ttsQ.shift(); const el=new Audio(url); const src=AC.createMediaElementSource(el); const g=AC.createGain(); g.gain.value=1.25; src.connect(g); g.connect(master);
+  const {url,onStart}=ttsQ.shift(); document.getElementById("ttsAudio")?.remove(); const el=new Audio(url); el.id="ttsAudio";el.hidden=true;document.body.appendChild(el); const src=AC.createMediaElementSource(el); const g=AC.createGain(); g.gain.value=1.25; src.connect(g); g.connect(master);
   let finished=false; const finish=()=>{ if(finished)return; finished=true; clearTimeout(timeout); el.pause(); src.disconnect(); g.disconnect(); duck(false); ttsPlaying=false; setTimeout(playTTS,350); };
   const timeout=setTimeout(finish,45000);
   el.onplay=()=>{ duck(true); onStart&&onStart(); }; el.onended=el.onerror=finish;
   el.play().catch(finish);
 }
 
-/* Independent 2-minute and 5-minute reminders; one pending voice per kind. */
-const INVITATION_TEXT='Tặng quà cộng dồn từ 10 xu vào bàn bình dân · Từ 100 xu vào VIP. Hết ghế, mời bạn chờ lượt nhé!';
-const ORDER_TEXT='Cứ gọi tự nhiên nhé! Gà nướng muối ớt, bò lúc lắc, mực nướng, tôm rang muối, ốc xào dừa, cá lóc nướng, nem chua rán, khoai tây chiên, lẩu hải sản. Bia Sài Gòn, 333, Tiger, Heineken, Larue, Hà Nội — thích món nào cứ nhắn!';
-const reminders=[
-  {text:INVITATION_TEXT,url:'/assets/table-invitation-v1.mp3',interval:120000,due:performance.now()+120000,pending:false},
-  {text:ORDER_TEXT,url:'/assets/order-invitation-v2.mp3',interval:300000,due:performance.now()+300000,pending:false}
-];
-let invitationHide=null;
-function showInvitation(text){
-  document.getElementById('invitationText').textContent=text;
-  const banner=document.getElementById('invitation');banner.classList.add('show');
-  clearTimeout(invitationHide);invitationHide=setTimeout(()=>banner.classList.remove('show'),10000);
+/* Automatic announcements are disabled. The room celebrates each 500 new likes. */
+let cheersUntil=0;
+function triggerRoomCheers(m,now=performance.now()){
+  cheersUntil=now+8000;
+  queueTTS('/assets/room-cheers-mix-v2.wav');
+  document.getElementById('orderNotice').textContent=(m.simulated?'THỬ · ':'')+m.milestone+' tim · Một, hai, ba... dô! 🍻';
+  for(const v of visitors.values()){v.glow=1;v.bubble={text:'🍻 Một, hai, ba... dô!',until:cheersUntil};}
 }
-function maybeInviteGuests(now=performance.now()){
-  const due=reminders.filter(r=>now>=r.due);
-  for(const r of due){r.pending=true;r.due=now+r.interval;}
-  if(due.length)showInvitation(due.map(r=>r.text).join(' • '));
-  if(giftHide||ttsPlaying||ttsQ.length||AC?.state!=='running')return;
-  const next=reminders.find(r=>r.pending);if(!next)return;
-  next.pending=false;queueTTS(next.url,()=>showInvitation(next.text));
-}
-setInterval(maybeInviteGuests,1000);
 
 /* ======================= effects ======================= */
 // A finalized gift event over 300 coins starts a bounded 20-second celebration.
@@ -518,6 +601,13 @@ function giftFx(v, tier){
   for (let i=0;i<(tier>=3?22:tier>=2?10:4);i++) petals.push({x:v.x+(Math.random()-.5)*120, y:v.y-80, vx:(Math.random()-.5)*40, vy:-(70+Math.random()*90), t:0, life:2.6+Math.random(), s:.16+Math.random()*.14});
   if (tier>=3){ bell(true); for (let i=0;i<30;i++) petals.push({x:540+(Math.random()-.5)*600, y:300+Math.random()*250, vx:(Math.random()-.5)*40, vy:30+Math.random()*50, t:0, life:5, s:.2+Math.random()*.15}); }
 }
+function updateHeartProgress(total,simulated=false){
+  total=Math.max(0,Math.floor(Number(total)||0));const target=(Math.floor(total/500)+1)*500,within=total%500;
+  const el=document.getElementById('heartProgress');el.setAttribute('aria-valuenow',within);
+  document.getElementById('heartCount').textContent=total.toLocaleString('vi-VN')+' / '+target.toLocaleString('vi-VN');
+  document.getElementById('heartGoal').textContent=(simulated?'Thử · ':'')+'Cùng nâng ly';
+  document.getElementById('heartFill').style.width=(within/5)+'%';
+}
 function hearts(v,n){ for (let i=0;i<Math.min(6,n);i++) petals.push({x:v.x+(Math.random()-.5)*60, y:v.y-140*(v.seat?.scale||.4), vx:(Math.random()-.5)*20, vy:-(50+Math.random()*40), t:0, life:1.6, s:.08, heart:true}); }
 
 /* ======================= server link ======================= */
@@ -531,16 +621,20 @@ function connect(){
     const m=JSON.parse(e.data);
     switch(m.t){
       case 'state':
+        updateHeartProgress(m.roomLikes||0,false);
         Object.assign(settings,m.settings);applySettings();startedAt=m.startedAt;
         visitors.clear();order=[];applyRoom(m,true);break;
       case 'room': applyRoom(m);break;
+      case 'notice': document.getElementById('orderNotice').textContent=m.text;break;
+      case 'meal': {if(m.effect==='host')hostThanks={name:m.name,until:performance.now()+12000};if(m.tableId){if(mealDeliveryQueue.length<100)mealDeliveryQueue.push({id:m.id,name:m.name,tableId:m.tableId,seatId:m.seatId,dish:m.dish});}const text=(m.tableId?'Bàn '+m.tableId:'Khách chờ')+' · '+m.name+' · '+m.count+' '+(m.name&&m.dish==='sausage'?'xúc xích':m.mealName||m.code||'món') ;document.getElementById('orderNotice').textContent=(m.effect==='host'?'👨‍🍳 Chủ quán cảm ơn! ':m.effect==='cheers'?'🍻 Cả bàn nâng cốc! ':'🍽 ')+text;const v=visitors.get(m.id);if(v){v.glow=1;v.snackUntil=performance.now()+10000;if(m.effect==='cheers'){for(const guest of visitors.values())if(guest.seatId?.split('-')[0]===m.tableId)guest.bubble={text:'🍻 Dô! Dô!',until:performance.now()+8000};}}if(m.effect==='fireworks'||m.effect==='host')triggerGiftFireworks({coins:301,name:m.name});break;}
       case 'settings':Object.assign(settings,m.settings);applySettings();break;
       case 'join':addVisitor(m.v,false);updateCount();break;
       case 'leave':removeVisitor(m.id);updateCount();break;
       case 'skin': { const v=visitors.get(m.id); if(v){ v.skin=m.skin; v.glow=.8;  } } break;
       case 'chat': { const v=visitors.get(m.id); if(v){ v.bubble={text:m.text, until:performance.now()+6000}; v.bow=.6; } } break;
       case 'gift': { triggerGiftFireworks(m); const v=visitors.get(m.id); if(v){v.coins=m.total;v.glow=1;if(m.sausageCount)v.snackUntil=performance.now()+7000;}renderMerit();showGift(m); } break;
-      case 'like': { const v=visitors.get(m.id); if(v) hearts(v,m.n); } break;
+      case 'roomCheers': triggerRoomCheers(m);break;
+      case 'like': { updateHeartProgress(m.total||0,!!m.simulated); const v=visitors.get(m.id); if(v) hearts(v,m.n); } break;
       case 'tts': if(m.tag!=='chant') queueTTS(m.url); break;
       case 'chant': break;
       case 'bell': bell(true); break;
@@ -579,6 +673,59 @@ function bubble(text,x,y,s){
   ctx.fillStyle='#3a1a08'; ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.fillText(t,x,y-h/2+1);
 }
 let last=performance.now();
+function drawSausageCart(now){
+  const t=now/1000;
+  ctx.save();ctx.translate(65,1420);
+  ellipse(127,232,143,23,'#0005');
+  // The cook stands behind the grill; the cart masks the lower body naturally.
+  person(4,137+Math.sin(t*.7)*2,172,190,false);
+  // Stainless trolley and wheels.
+  for(const x of [32,224]){ellipse(x,219,14,17,'#1d2422');ellipse(x,219,6,8,'#929789');}
+  ctx.fillStyle='#434c46';ctx.fillRect(18,92,10,122);ctx.fillRect(229,92,10,122);
+  const metal=ctx.createLinearGradient(0,0,254,0);metal.addColorStop(0,'#66736a');metal.addColorStop(.35,'#bdc3ac');metal.addColorStop(.7,'#889587');metal.addColorStop(1,'#505f56');
+  ctx.fillStyle=metal;rr(7,104,241,93,6);ctx.fill();ctx.strokeStyle='#d1d0ac88';ctx.lineWidth=2;ctx.stroke();
+  ctx.fillStyle='#74634c';ctx.fillRect(16,184,224,9);
+  // Warming cabinet with a few ready sausages.
+  ctx.fillStyle='#26372c';rr(25,140,91,37,4);ctx.fill();ctx.fillStyle='#c6d6b42a';ctx.fillRect(29,144,83,29);
+  for(let i=0;i<4;i++){ctx.fillStyle='#a35a32';rr(34+i*19,151,12,18,5);ctx.fill();ctx.fillStyle='#db9b58';ctx.fillRect(37+i*19,153,2,12);}
+  ctx.fillStyle='#3e553d';rr(49,111,165,25,4);ctx.fill();ctx.fillStyle='#f6dfaa';ctx.font='700 16px "Be Vietnam Pro",sans-serif';ctx.textAlign='center';ctx.fillText('XÚC XÍCH NƯỚNG',132,129);
+  // Recessed charcoal grill, ember glow, then the cooking grate.
+  ctx.fillStyle='#424a3d';rr(0,76,258,31,5);ctx.fill();ctx.fillStyle='#202922';rr(9,79,201,21,3);ctx.fill();
+  for(let i=0;i<13;i++){const x=18+i*14;ctx.fillStyle=i%2?'#bc6b2c':'#6f3f26';ctx.globalAlpha=.65+.15*Math.sin(t*2+i);ellipse(x,90,8,5,ctx.fillStyle);}ctx.globalAlpha=1;
+  ctx.strokeStyle='#a5a58b';ctx.lineWidth=1.5;for(let x=15;x<210;x+=9){ctx.beginPath();ctx.moveTo(x,79);ctx.lineTo(x-5,100);ctx.stroke();}
+  // Small grilled sausages with browned scoring, in two rows.
+  for(let i=0;i<8;i++){
+    const x=29+(i%4)*44,y=81+Math.floor(i/4)*12;
+    ctx.save();ctx.translate(x,y);ctx.rotate(-.12);
+    const g=ctx.createLinearGradient(0,0,0,10);g.addColorStop(0,'#e8ac65');g.addColorStop(.4,'#bf7440');g.addColorStop(1,'#713c24');ctx.fillStyle=g;rr(-15,-4,32,9,4);ctx.fill();
+    ctx.strokeStyle='#6b3822';ctx.lineWidth=1;for(let k=-8;k<13;k+=7){ctx.beginPath();ctx.moveTo(k,-2);ctx.lineTo(k+3,2);ctx.stroke();}ctx.restore();
+  }
+  // A tray and condiments on the side shelf.
+  ellipse(230,91,18,7,'#c8c6a6');ctx.fillStyle='#b5472e';rr(218,65,8,23,2);ctx.fill();ctx.fillStyle='#dcc073';rr(233,68,8,20,2);ctx.fill();
+  ctx.fillStyle='#e5d6a3';ctx.fillRect(220,61,4,6);ctx.fillRect(235,64,4,6);
+  ctx.strokeStyle='#5b6659';ctx.lineWidth=5;ctx.beginPath();ctx.moveTo(246,104);ctx.lineTo(267,57);ctx.lineTo(278,57);ctx.stroke();
+  // Gentle tong movement over the sausages.
+  const handX=147+Math.sin(t*1.25)*17,handY=61+Math.cos(t*1.25)*3;
+  ctx.strokeStyle='#d6aa7d';ctx.lineWidth=5;ctx.lineCap='round';ctx.beginPath();ctx.moveTo(126,36);ctx.lineTo(handX,handY);ctx.stroke();
+  ctx.strokeStyle='#d0d2bb';ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(handX,handY);ctx.lineTo(handX+12,85);ctx.moveTo(handX+3,handY);ctx.lineTo(handX+17,85);ctx.stroke();
+  // Light smoke rises and fades, leaving the menu lettering unobstructed.
+  ctx.lineWidth=2;for(let i=0;i<4;i++){const f=(t*.15+i/4)%1;ctx.globalAlpha=(1-f)*.18;ctx.strokeStyle='#e9e1c9';ctx.beginPath();ctx.moveTo(32+i*44,73-f*42);ctx.bezierCurveTo(20+i*44,60-f*42,48+i*44,48-f*42,32+i*44,31-f*42);ctx.stroke();}ctx.restore();
+}
+function drawMenuBoard(now){
+  if(!menuItems.length)return;
+  const food=Math.floor(now/12000)%2===0,items=menuItems.filter(m=>m.code.startsWith(food?'M':'B'));
+  ctx.save();ctx.translate(35,640);ctx.rotate(-.025);
+  ellipse(150,586,150,18,'#0002');ctx.fillStyle='#60472e66';ctx.fillRect(16,550,10,50);ctx.fillRect(274,550,10,50);
+  ctx.fillStyle='rgba(20,35,29,.65)';rr(0,0,300,560,10);ctx.fill();ctx.strokeStyle='rgba(195,179,135,.32)';ctx.lineWidth=1;ctx.stroke();
+  ctx.textAlign='center';ctx.fillStyle='#f4dfad';ctx.font='700 24px "Be Vietnam Pro",sans-serif';ctx.fillText(food?'THỰC ĐƠN MÓN NHẬU':'THỰC ĐƠN BIA',150,40,270);
+  ctx.font='14px "Be Vietnam Pro",sans-serif';ctx.fillText('Chat gọi mã món · Tặng quà thanh toán',150,65,270);
+  items.forEach((m,i)=>{const y=100+i*26;ctx.textAlign='left';ctx.font='16px "Be Vietnam Pro",sans-serif';ctx.fillStyle='#eee7cf';ctx.fillText(m.code+' '+m.name,17,y,215);ctx.textAlign='right';ctx.fillStyle='#ffdf97';ctx.fillText(m.price+'xu',282,y,48);});
+  ctx.textAlign='center';ctx.font='15px "Be Vietnam Pro",sans-serif';ctx.fillStyle='#d4c198';ctx.fillText('🌭 Xúc xích 1xu · Đổi trang mỗi 12 giây',150,530,270);ctx.restore();
+}
+function drawDanceFloor(now){
+  ctx.save();ctx.fillStyle='#18242170';rr(365,1505,670,190,22);ctx.fill();ctx.strokeStyle='#baa48277';ctx.stroke();
+  if(currentDancers.size){for(let i=0;i<10;i++){ctx.fillStyle=['#bb6fbd33','#62c9cc33','#edc66d33'][i%3];ctx.globalAlpha=.25+.25*Math.sin(now/160+i);ctx.fillRect(380+i*63,1520,58,155);}}ctx.restore();
+}
 function frame(now){
   requestAnimationFrame(frame); const dt=Math.min((now-last)/1000,.05); last=now; const t=now/1000;
   ctx.clearRect(0,0,1080,1920);
@@ -592,8 +739,10 @@ function frame(now){
     ctx.fillStyle='#f4d99a'; ctx.beginPath(); ctx.arc(x,y,2,0,Math.PI*2); ctx.fill();
   }
   ctx.restore();
-  kitchen(now);
+  kitchen(now);drawSausageCart(now);drawMenuBoard(now);drawDanceFloor(now);
   vipZone();
+  if(hostThanks&&now<hostThanks.until){person(4,690,790,150);ctx.save();ctx.font='700 23px "Be Vietnam Pro",sans-serif';ctx.fillStyle='#ffe4a1';ctx.textAlign='center';ctx.fillText('Chủ quán cảm ơn '+hostThanks.name+'!',680,620,610);ctx.restore();}
+
   // visitors, chairs and tables sorted by depth
   const bubbles=[];
   const list=[serverAt(now,0),serverAt(now,1),...seats.map(chair=>({chair,y:chair.y-.5})),...visitors.values(),...tables.map(table=>({table,y:table.y+35*table.scale}))].sort((a,b)=>a.y-b.y);
@@ -622,20 +771,27 @@ function frame(now){
     }      // glide when the grid grows
     v.fade=Math.min(1,v.fade+dt*2); v.glow=Math.max(0,v.glow-dt*.45); v.bow=Math.max(0,v.bow-dt*.7);
     const ws=s;
-    const seatHighlight=now<(v.seatHighlightUntil||0);
+    const seatHighlight=now<(v.seatHighlightUntil||0)||v.zone==='dance';if(v.zone==='dance'&&v.state!=='walk'){v.bubble={text:'💃 ♪ ♫',until:now+1000};}
     if(v.glow>0||seatHighlight){ctx.save();ctx.globalAlpha=seatHighlight?.65:v.glow*.25;ellipse(v.x,v.y,seatHighlight?58:48,18,'#f6d38a');ctx.restore();}
     const seated=v.state==='sit'||v.state==='sitting';
     const female=['woman','granny','nun','child'].includes(v.skin);
     const height=(seated?248:330)*ws;
     const moving=v.state==='walk',bob=moving?Math.sin(now*.012+v.phase)*2:Math.sin(now*.001+v.phase)*.5;
     ctx.save();ctx.globalAlpha=v.fade;
-    person((seated?2:0)+(female?1:0),v.x,v.y+bob,height,moving?v.flip:v.seat?.side==='back');
+    if(moving||v.zone==='dance')animatedPerson(female?1:0,v.x,v.y,height,moving?v.flip:false,moving?'walk':'dance',now,v.phase);
+    else person((seated?2:0)+(female?1:0),v.x,v.y+bob,height,v.seat?.side==='back');
     ctx.restore();
+    if(now<cheersUntil){
+      const lift=(1+Math.sin(now/220))*5;
+      ctx.save();ctx.translate(v.x+height*.25,v.y-height*.65-lift);ctx.rotate(-.18);
+      ctx.fillStyle='#fff0c9';ctx.strokeStyle='#fff0c9';ctx.lineWidth=2;ctx.strokeRect(4,-8,7,12);
+      ctx.fillStyle='#e4ac39';ctx.fillRect(-6,-12,13,20);ellipse(.5,-12,7,3,'#fff4d9');ctx.restore();
+    }
     const ty=v.y-height-11;
     tag(v.name,v.x,ty,ws,(seatHighlight||v.diningTier==='vip')?'gold':'',avatar(v.avatar),v.seat?.gap||110);
     if(v.seat?.standing){
       ctx.save();ctx.font='600 17px "Be Vietnam Pro",sans-serif';ctx.textAlign='center';ctx.fillStyle=v.diningTier==='vip'?'#f0d48b':'#e9dfca';
-      ctx.fillText((v.diningTier==='vip'?'Chờ VIP':v.diningTier==='regular'?'Chờ bàn':'Xếp hàng')+' #'+v.queuePosition,v.x,v.y+22);
+      ctx.fillText(v.zone==='dance'?'💃 Khách VIP đang nhảy':(v.diningTier==='vip'?'Chờ VIP':v.diningTier==='regular'?'Chờ bàn':'Xếp hàng')+' #'+v.queuePosition,v.x,v.y+22);
       if(v.sausages>0){ctx.font='24px sans-serif';ctx.fillText('🌭'+(v.sausages>1?' ×'+v.sausages:''),v.x+30,v.y-55);}
       ctx.restore();
     }
