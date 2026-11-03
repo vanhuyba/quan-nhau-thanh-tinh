@@ -2,51 +2,85 @@
 
 Cập nhật ngày **03/11/2026**, giờ Việt Nam. Tài liệu này thay thế các ghi chép vận hành chánh điện trước đây. Trạng thái LIVE và kết nối là lần quan sát gần nhất, không bảo đảm tại thời điểm đọc; luôn kiểm tra lại trước khi thao tác.
 
-## Cập nhật menu và sàn nhảy VIP — 03/11/2026
+## Trạng thái hiện tại và các phần đã hoàn thiện — 03/11/2026
 
-- Thanh tim góc trên trái x120/y137: tổng tim/mốc kế tiếp500,1000,1500…; phần tô theo tiến độ của từng chặng500 tim, dữ liệu thật khôi phục từ snapshot. Tim mô phỏng có nhãn Thử. Phục vụ giữ tableId/seatId của đơn để tránh ghép bàn cũ với ghế VIP mới, mang đúng hình món/bia, dừng1.6 giây giao tại đích rồi quay về. Đã thử quà10xu giao bia B1/B1-0 trên overlay và mốc tim mô phỏng;34 kiểm thử Node đạt, gồm hồi quy đổi bàn và tiến độ500 tim.
+Mục này là nguồn mô tả bản hiện tại, thay thế các quy tắc tương ứng trong phần bàn giao lịch sử bên dưới. Workspace hiện tại: `/Users/balance/Documents/quan-nhau-thanh-tinh`; Node **22.21.1**. Không suy ra trạng thái LIVE hoặc kết nối TikTok hiện tại từ những lần kiểm tra trước.
 
-- Sửa vùng cắt atlas nhân vật: ranh giới hàng đầu bếp ở y964 thay vì1024 (ảnh1024x1536), lấy đủ mũ/đầu/cổ và tránh lẫn mũ vào hàng khách ngồi. Đã xác minh đầu bếp xe xúc xích và bếp chính trên overlay, console không lỗi.
+### Giao diện quán
 
-- Đọc quà/món/follow luân phiên Hoài My và Nam Minh, controller chọn giọng bắt đầu; bỏ Linh. Follow mới cảm ơn kèm tên, follow lặp không đọc lại. `synthesize.py` dùng edge-tts7.3.1 trong `live/.tts-venv`, thử tối đa4 lần khi dịch vụ trả rỗng/ngắt/chậm; từ lần2 dùng tốc độ/cao độ gốc cùng giọng. Mỗi lần tối đa28 giây; tổng120 giây. Chỉ gửi file MP3 hoàn chỉnh, xóa file .part lỗi, giới hạn40 file. Đã thử thật follow Hoài My30816 bytes sau2 lần và quà Nam Minh32976 bytes sau4 lần. Dịch vụ ngoài vẫn có thể chậm/lỗi; không bảo đảm tuyệt đối. Có2 kiểm thử Python về retry/file dở và32 kiểm thử Node. Xác minh trực tiếp overlay đọc follow Minh bằng Nam Minh: audio readyState4, ended=true, currentTime=duration=4.2s, muted=false, error=null. Vẫn ghi nhận một câu thử khác thất bại sau4 lần; chưa thể bảo đảm dịch vụ Edge luôn đáp ứng.
+- Overlay Canvas dọc **1080 × 1920**. Thu nhỏ banner, bàn và ghế; giữ **8 bàn × 10 ghế**, gồm 2 bàn VIP và 6 bàn bình dân.
+- Menu nằm trong không gian quán, nền xanh mờ như bảng hướng dẫn. Có **15 món M01–M15, 10 bia B01–B10**, chuyển trang mỗi 12 giây; giá ghi đầy đủ `10xu`, `50xu`… Menu ở x35/y640, đã nâng 180px để chừa khoảng camera bên dưới, phía trên xe xúc xích.
+- Bàn thường bày sẵn **3 món và bia**; bàn VIP **6 món, bia và xô lạnh**. Món khách gọi thêm tiếp tục hiện trên bàn trong 30 phút, tối đa 9 mục hiển thị gần nhất cùng phần bày sẵn.
+- Thông báo món ở y300 và banner mời khách ở y360, phía trên mái nhà bên trái, tránh che khu bàn.
+- Góc dưới menu là **xe nướng xúc xích** (`drawSausageCart`, x65/y1420): người đứng sau xe, kẹp đảo chuyển động, vỉ nướng, than hồng, khói nhẹ, khay món chín và gia vị.
+- Đã sửa vùng cắt ảnh đầu bếp: ranh giới hàng cuối atlas ở y964 thay vì1024 trên ảnh1024×1536. Mũ, đầu và cổ hiển thị đầy đủ ở xe xúc xích và bếp chính; tránh lẫn mũ vào ảnh khách ngồi.
+- Animation dùng lưới ảnh liền nhau 4×7 ô thay bản tách tay/chân: nhân vật bước khi di chuyển, nhún/đổi hướng khi nhảy; phục vụ giữ khay. Đây vẫn là biến dạng ảnh 2D với biên độ nhỏ, chưa phải bộ ảnh từng khung hình.
 
-Bản hiện tại chạy tại workspace `/Users/balance/Documents/quan-nhau-thanh-tinh`, dùng Node22.21.1. Các đường dẫn huyba và trạng thái Studio bên dưới là lịch sử. Đã áp dụng backend lên localhost:3000; chưa phát LIVE hoặc xác minh quà/follow thật trong bản này.
+### Khách vào quán và gọi món
 
-- Nâng menu thêm180px Canvas để chừa khoảng camera bên dưới, phía trên xe xúc xích. Bàn thường bày sẵn3 món và bia; bàn VIP6 món, bia và xô lạnh. Món gọi thêm vẫn hiện trên bàn.
-- Thu nhỏ banner/bàn/ghế. Menu là bảng gỗ Canvas trong sân quán ở x35/y640, nền rgba(20,35,29,.65) như bảng hướng dẫn, đổi trang món/bia mỗi12 giây; giá có hậu tố xu (10xu/50xu). Thông báo món ở y300 và banner mời bàn ở y360, bên trái trên mái nhà, tránh che bàn/khách và bảng hướng dẫn bên phải. Không còn khối menu HTML treo đầu màn hình. Phục vụ đi hai làn x657/693 trong lối giữa hai cột bàn; giao món dừng bên cạnh bàn, không đi xuyên mặt bàn. Giữ15 món M01–M15,10 bia B01–B10,8 bàn×10 ghế, VIP100xu.
-- Chat `gọi M04` / `goi B03` hoặc tên món chính xác chọn món. Xu từ quà vào số dư; khi đủ tiền và có ghế, đổi số dư thành tối đa99 phần món đã chọn, giữ xu lẻ. Mỗi khách một lựa chọn đang chờ; gọi mã khác sẽ thay lựa chọn. Có thể gọi bằng số dư đã tặng. Xu đã chi vẫn tính hạng bàn trong phiên.
-- Quà đơn giá1xu khi chưa chọn món đổi thành xúc xích (không cộng số dư mua món); đơn giá10xu chưa chọn món mặc định bia333. Khi đã chọn món, mọi quà đều thanh toán món đó. Combo nhân giá trị/số lượng. Món chưa có ghế giữ trong phần thưởng chờ khách vào bàn.
-- Sự kiện follow mới nhận trong phiên hoặc tổng10xu cho quyền bàn thường. Follow lặp không tăng xu. Chưa xác minh được người đã follow từ trước; chủ quán có thể mời bàn thủ công.
-- Món thực tế hiện trên bàn trong30 phút. Phục vụ đi đến bàn; đơn20xu trở lên thông báo tên bằng TTS khi bật đọc quà;50–99xu nâng cốc;100–199xu pháo hoa; từ200xu chủ quán cảm ơn và pháo hoa. Pháo hoa quà riêng >300xu vẫn giữ. Các khoảng giá được mở rộng liên tục để không bỏ sót tổng combo.
-- Thay toàn bộ karaoke/30 phút bằng sàn nhảy: chỉ khách có ghế VIP ngồi đủ10 phút mới được lên nhảy. Mốc tính từ lúc nhận ghế VIP (không tính thời gian bàn thường hoặc hàng chờ). Các khách đủ điều kiện cùng lúc nhảy chung một bài; khách đủ điều kiện khi bài đang chạy đợi bài tiếp theo.
-- Ghế VIP được giữ khi khách nhảy. Bài60 giây kết thúc thì khách về ghế cũ, mốc10 phút bắt đầu lại. Server quét sàn mỗi giây; controller có nút kết thúc bài sớm. Khách có ghế được giữ trong quán, khách chưa có ghế vẫn timeout5 phút.
-- Nhạc sàn local tự tạo `assets/music/dance-floor-v1.wav`,120BPM/60 giây/không lời. Khi nhảy, overlay dừng nhạc nền, phát đúng một bài; sau đó khôi phục nhạc nền. Tải lại overlay giữa bài sẽ phát từ vị trí thời gian hiện tại. Nhân vật lắc lư/đổi hướng và sàn đổi màu. Chưa xác minh âm thanh từ thiết bị người xem LIVE.
-- Checkpoint giữ số dư, món, follow, mốc VIP10 phút, khu nhảy và thời điểm bài đang phát. Ledger/key được giữ nguyên.29 kiểm thử gồm hồi quy và luồng mua món/follow/VIP nhảy rồi về ghế đạt sau cập nhật; kiểm tra lại khi sửa tiếp.
-- Studio chưa được reload trong lần cập nhật này. Khi áp dụng lên nguồn Link, dùng `http://localhost:3000/live/overlay.html?autoplay=1&v=vip-dance-1` và kiểm tra trực tiếp Studio.
+- **Bình luận chỉ tạo nhân vật vào hàng chờ**, không tự cấp ghế. Chat `nam` / `nữ` đổi nhân vật.
+- Follow mới nhận trong phiên **hoặc tổng quà 10xu** cho quyền bàn bình dân; từ **100xu** lên VIP. Xu tính theo phiên, không lấy tổng ledger lịch sử để cấp hạng. Xu đã dùng mua món vẫn tính hạng bàn.
+- Khi hết ghế, khách chờ theo hạng. Khách có ghế được giữ trong quán; khách chưa có ghế hết hoạt động 5 phút sẽ rời hàng chờ. Có mời bàn thủ công trong controller.
+- Chat `gọi M04`, `goi B03` hoặc tên món chính xác để chọn món, không phân biệt dấu/hoa thường. Tên bia cần khớp khoảng trắng, ví dụ `bia 333`. Chọn mã mới thay lựa chọn đang chờ.
+- Xu từ quà vào số dư; đủ xu và có ghế sẽ thanh toán món đã chọn, tối đa99 phần/lượt, giữ xu lẻ. Có thể gọi bằng số dư đã tặng trước đó. Chưa đủ xu/chưa có ghế sẽ báo trạng thái và giữ lựa chọn chờ.
+- Quà **đơn giá1xu**, khi chưa chọn món, đổi thành số xúc xích tương ứng (không cộng phần xu đó vào số dư). Quà **đơn giá10xu**, khi chưa chọn món, mặc định gọi bia333/B03. Khi đã chọn món, quà dùng thanh toán món đó. Combo tính đơn giá × số lượng.
+- Đơn từ20xu yêu cầu đọc tên/món khi bật đọc quà;50–99xu cả bàn nâng cốc;100–199xu pháo hoa; từ200xu chủ quán cảm ơn và pháo hoa. Hiệu ứng pháo hoa quà riêng >300xu vẫn giữ.
 
-- Kiểm tra trực tiếp controller ngày03/11: khách mô phỏng QA Kiem Thu thử bình luận/nam/nữ,1xu xúc xích,follow vào B1,M04,10xu bia333,nâng VIP,đơn50/100/300xu,số dư1xu,V1-0 giữ qua nhảy và tự về sau60 giây; nút kết thúc sớm cũng về đúng ghế. Audio DOM readyState4,paused=false,currentTime tăng; dừng bài paused=true. Khách thử đã dọn riêng, không ghi ledger quà thật. TTS động tiếp tục lỗi stream/timeout; không coi phần đọc cảm ơn đã đạt.
-- Mục mô phỏng controller có Thử follow,Thử VIP đủ10 phút (chỉ khách demo VIP),Dọn khách thử này (chỉ xóa demo đang chọn),giữ nguyên khách thật/ledger.
+### Phục vụ giao món
 
-- Lời nhắc5 phút đổi sang hướng dẫn xem menu/chọn món nhậu và bia,chat gọi M04/B03,dùng xu dư hoặc tặng quà đủ xu. File mới `assets/order-invitation-v3.wav` tổng hợp bằng giọng Linh local; không phụ thuộc Edge TTS. Giọng khác bản Nam Minh cũ.
-- Chat gọi món nhận mã hoặc tên chính xác,không phân biệt dấu/hoa thường (gọi khoai tây chiên / goi bia333 cần khoảng trắng như tên menu “bia 333”). Chưa đủ xu/có ghế sẽ báo trạng thái. Khi giao,sự kiện mang id khách/seatId; phục vụ theo hàng đợi8 giây/lượt,đi lối giữa rồi vòng phía trước/sau hàng ghế tới đúng khách. Đơn mới không ngắt đơn trước. Kiểm thử tự động tới đúng tọa độ ghế và thứ tự2 lượt giao đạt.
+- Sự kiện món mang `id`, `tableId`, `seatId`, loại món. Hàng đợi giữ các đơn liên tiếp, không để đơn mới cắt ngang đơn đang giao.
+- Phục vụ mang hình món/bia, đi từ lối giữa tới vị trí phía trước/sau bàn tương ứng ghế gọi món, **dừng giao 1,6 giây**, rồi quay về; tổng8 giây/lượt.
+- Đích giao lấy theo bàn/ghế đã ghi trong đơn. Đã sửa lỗi dùng ghế VIP mới của khách nhưng vẫn lấy tọa độ bàn cũ khi khách đổi hạng trong lúc giao.
+- Đã thử mô phỏng giao bia tại **B1 / B1-0** trên overlay và kiểm thử tự động đích giao, thứ tự đơn, giữ bàn gọi khi khách chuyển VIP.
 
-- Sửa mô phỏng: cùng tên giữ xu/follow qua các lần thử; bình luận không tự cấp ghế. Nút làm trống quán xóa phần thưởng khách demo/sim/preview để thử lại từ0,giữ phần thưởng khách thật và ledger. Dọn khách thử này dùng để reset riêng tên đang nhập.29 kiểm thử đạt,kể cả bình luận sau reset không có ghế.
+### Tim và nâng ly
 
-- Giọng vui tự nhiên: mặc định Hoài My,cao độ+2Hz,tốc độ+8% thay Nam Minh-18Hz/-20%. Đã áp dụng setting phiên hiện tại. Hai lời mời dựng lại bằng Linh local195 từ/phút: table-invitation-v2.wav(15,6s),order-invitation-v4.wav(22,8s),lời văn thân mật cả nhà ơi/mời ăn ngon uống vui. TTS động vẫn phụ thuộc Edge; đổi tone không đồng nghĩa đã sửa lỗi stream của dịch vụ.
+- Thanh tiến độ ở góc trên trái **x120/y137**, hiển thị tổng tim / mốc kế tiếp **500 →1.000 →1.500…**.
+- Phần tô **màu hồng** chạy theo từng chặng500 tim:200/500 =40%,400/500 =80%; đạt500 chuyển chặng kế tiếp;700/1.000 =40% của chặng500–1.000. Có chuyển động mượt khi cập nhật.
+- Mỗi sự kiện `like` cập nhật thanh. Tim thật lấy số tăng thêm `likeCount`, không cộng lại `totalLikeCount`; lọc trùng `msgId` trong kết nối. Tổng `roomLikes` được checkpoint và khôi phục từ snapshot khi tải overlay.
+- Mỗi500 tim mới, toàn bộ khách ngồi/chờ/nhảy nâng ly8 giây với câu **“Một, hai, ba… dô!”**. Một gói vượt nhiều mốc chỉ hô một lần cho mốc cao nhất.
+- Tim mô phỏng đếm riêng, thanh có nhãn **Thử**; controller có nút Thử500 tim. Tải lại overlay hiển thị lại tổng tim thật từ snapshot.
 
-- Hai lời mời tự động2/5 phút đã tắt theo yêu cầu. Mỗi500 tim mới nhận từ connector (likeCount là số tăng thêm,không cộng totalLikeCount),backend phát roomCheers;cả khách ngồi/chờ/nhảy nâng ly8 giây,kèm câu “Một,hai,ba...dô!” và audio ngắn room-cheers-v1.wav. Mốc500/1000/1500…;một gói vượt nhiều mốc chỉ hô1 lần cho mốc cao nhất. Tim thật checkpoint trong roomLikes,lọc trùng msgId mỗi kết nối;tim thử đếm riêng. Controller có Thử500 tim.30 kiểm thử đạt.
+### Sàn nhảy VIP
 
-- Controller thêm mục Demo âm thanh quán nhậu: hô123dzô TiếngĐộng,cụng ly/đám đông/không khí quán Mixkit và bản local hiện tại để đối chiếu. Trình phát trực tiếp nguồn công khai,preload none,chỉ phát tại controller,nghe1 bản dừng bản khác,có nút dừng tất cả. Chưa áp dụng nguồn ngoài lên overlay;TiếngĐộng chưa xác minh quyền dùng thương mại.
+- Đã thay cơ chế karaoke sau30 phút bằng: **khách có ghế VIP ngồi đủ10 phút → nhảy một bài → về bàn cũ**. Thời gian bàn thường/hàng chờ không tính vào mốc VIP.
+- Khách đủ điều kiện cùng lúc nhảy chung bài. Khách đủ điều kiện trong lúc bài đang chạy chờ bài tiếp theo.
+- Giữ ghế khi khách nhảy; hết bài60 giây về đúng ghế cũ và bắt đầu lại mốc10 phút. Controller có kết thúc bài sớm và thử đủ10 phút riêng cho khách demo.
+- Nhạc sàn `assets/music/dance-floor-v1.wav`:120BPM,60 giây,không lời,tự tạo. Khi nhảy dừng nhạc nền; hết bài khôi phục nhạc nền. Tải lại overlay giữa bài lấy đúng vị trí thời gian đang phát.
 
-- Người dùng chọn ghép demo1+2+3 cho500 tim: file room-cheers-mix-v2.wav8 giây,tiếng hô Việt chính,cụng ly2,8s,đám đông3,5s âm lượng thấp. Đã thay đường dẫn hiệu ứng,thêm trình nghe bản ghép trong controller. Nguồn/ghi chú quyền dùng ở assets/sfx/SOURCES.md.
+### Âm thanh và giọng đọc
 
-- Animation Canvas2D đã thay bản tách khớp bị đứt tay/chân bằng continuous skin mesh4×7 ô,chung đỉnh giữa tam giác,texture cache theo atlas. Biên độ nhỏ: nhún tối đa1,3% chiều cao,nghiêng tối đa0,025rad; tay/vai/hông/gối liền nhau. Phục vụ giữ khay,khách bước chuyển trọng tâm và nhún theo nhạc;không cộng offset gâytrôi.32 kiểm thử đạt (kiểm tra lưới không gập/đứt qua các pha,texturecache). Đã kiểm tra preview không lỗi console,dọn QA Smooth. Vẫn là biến dạng ảnh2D,cử động tiết chế,chưa có sprite đi/nhảy vẽ từng frame.
+- **Hai lời mời tự động định kỳ2/5 phút đã tắt**. Các file lời mời cũ bằng Linh còn trên đĩa không có nghĩa đang được phát.
+- Âm thanh500 tim dùng bản ghép đã chọn **demo1+2+3**: `assets/room-cheers-mix-v2.wav`,8 giây; tiếng hô Việt chính, cụng ly từ2,8s và đám đông từ3,5s với âm lượng thấp. Nguồn và ghi chú quyền dùng: `assets/sfx/SOURCES.md`. Quyền thương mại nguồn TiếngĐộng chưa được xác minh.
+- Controller có mục demo âm thanh, nghe riêng từng nguồn hoặc bản ghép; nghe bản mới dừng bản trước, có dừng tất cả.
+- **Đã bỏ giọng Linh khỏi luồng đọc động**. Hoài My và Nam Minh đọc luân phiên từng câu; lựa chọn trong controller xác định giọng bắt đầu. Follow mới cảm ơn kèm tên; follow lặp trong phiên không đọc lại.
+- `live/synthesize.py` dùng **edge-tts7.3.1**, thử tối đa4 lần khi dịch vụ trả rỗng/ngắt/chậm; từ lần2 dùng tốc độ/cao độ gốc nhưng giữ đúng giọng. Mỗi lần chờ tối đa28 giây; tiến trình tổng120 giây. Chỉ gửi MP3 hoàn chỉnh, xóa `.part` lỗi và giới hạn40 file TTS. Khi không có môi trường Python, server dùng thư viện Node `msedge-tts` sẵn có.
+- Đã nhận âm thanh follow Hoài My30.816 bytes sau2 lần, quà Nam Minh32.976 bytes sau4 lần. Đã xác minh trình duyệt phát hết câu cảm ơn follow Minh bằng Nam Minh:4,2 giây, `ended=true`, `muted=false`, không lỗi.
+- **Giới hạn còn tồn tại:** Edge TTS vẫn có câu thất bại sau4 lần; phụ thuộc dịch vụ ngoài và có thể chậm. Không coi đây là nguồn TTS được bảo đảm luôn hoạt động. Giọng đọc đã kiểm tra trên overlay local, chưa xác minh âm thanh tới thiết bị người xem LIVE.
+- Trình duyệt cần bấm **Bật âm thanh** sau khi tải trang nếu autoplay bị chặn. Nguồn Studio có thể dùng `?autoplay=1`; vẫn phải kiểm tra âm thanh thực tế trong Studio.
 
-- Góc dưới menu đổi thành xe nướng xúc xích Canvas `drawSausageCart` tại x65/y1420: người đứng sau xe, kẹp đảo xúc xích chuyển động, vỉ nướng có than hồng và khói nhẹ, khay món chín và chai gia vị. Đã reload overlay, kiểm tra trực quan đúng vị trí và không có lỗi console.
+### Controller và kiểm thử đã hoàn tất
 
-- Controller có mục Demo tự động từng bước trên UI (`#uiScenario`):12 bước với2 tên sim riêng theo thời gian,bình luận/hàng chờ,follow,1xu/10xu,bia,món,VIP,nữ,nhảy trọn60s,về đúng ghế,500 tim. Mỗi bước đợi trạng tháiWebSocket đúng rồi nghỉ4 giây;có nút dừng và dọn riêng khách khi kết thúc. Mốc VIP10 phút được fast-forward riêng khách demo;không thay luật khách thật. Đã chạy trực tiếp hoàn tất12/12 bước,nhạc nhảy readyState4/pausedfalse,đã dọn2 khách;TTS động vẫn lỗi stream như cũ. Ảnh ui-scenario-results.png và ui-scenario-cheers.png.
+- Các nút mô phỏng: bình luận, quà, follow, đổi giới tính, VIP đủ10 phút, kết thúc nhảy,500 tim, dọn riêng khách thử. Cùng tên demo giữ xu/follow giữa các lượt thử; bình luận sau reset không tự được ghế.
+- Demo tự động UI tại `control.html#uiScenario`:12 bước với2 tên thử riêng, kiểm tra bình luận→hàng chờ→follow/quà→gọi món/bia→VIP→nhảy đủ60 giây→về ghế→500 tim. Mỗi bước đợi đúng trạng thái WebSocket và có thời gian quan sát; có dừng/dọn riêng khách thử.
+- Đã chạy UI **12/12 bước**; riêng điều kiện chờ VIP10 phút được tua nhanh cho demo, không thay luật khách thật. Đã kiểm tra nhạc nhảy phát và dừng; dọn khách thử, không ghi quà mô phỏng vào ledger thật.
+- Kết quả gần nhất: **34 kiểm thử Node đạt**, gồm animation, món/follow/VIP, checkpoint, tim và giao món; **2 kiểm thử Python đạt** cho thử lại TTS và không phát file dở. Đây là kết quả ở lần kiểm tra đã ghi, không thay cho kiểm tra sau mỗi thay đổi mới.
+- Ảnh đối chiếu trong workspace: `ui-scenario-results.png`, `ui-scenario-cheers.png`, `live-menu-camera-space.png`, `live-chef-fixed.png`, `live-audio-verified.png`, `live-heart-progress.png`.
 
-Các mục bên dưới mô tả bản bàn giao trước nâng cấp; quy tắc menu/follow/timeout/karaoke ở mục này thay thế các quy tắc cũ tương ứng.
+### Chạy và tiếp quản
+
+```sh
+cd /Users/balance/Documents/quan-nhau-thanh-tinh/live
+/Users/balance/.nvm/versions/node/v22.21.1/bin/node server.mjs
+```
+
+- Controller: `http://localhost:3000/live/control.html`.
+- Overlay: `http://localhost:3000/live/overlay.html?v=menu-1`.
+- Chuẩn bị Python TTS khi chuyển máy: tạo môi trường `python3 -m venv live/.tts-venv` từ root project, rồi chạy `live/.tts-venv/bin/pip install -r live/tts-requirements.txt`. Môi trường này không đưa vào Git.
+- Kiểm thử Node: từ thư mục `live`, chạy Node22 với `--test tests/*.test.mjs`. Kiểm thử TTS: từ root chạy `live/.tts-venv/bin/python -m unittest discover -s live/tests -p 'test_*.py'`.
+- Checkpoint giữ số dư, món, follow, mốc VIP, ghế, khu nhảy, bài đang phát và tổng tim thật. **Giữ nguyên ledger/key/checkpoint**, không xóa dữ liệu để dọn demo; dùng nút dọn khách thử.
+- Các ghi chép về đường dẫn `/Users/huyba/...`, karaoke và lời mời Linh ở phần sau là lịch sử. Chưa xác minh lại Studio/LIVE thật sau toàn bộ loạt cập nhật này; kiểm tra riêng khi phát.
+
 
 ## Trạng thái kết thúc gần nhất — 03/11/2026
 
